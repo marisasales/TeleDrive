@@ -81,10 +81,10 @@ class SyncRepositoryImpl(
         return runSync(incremental = fileDao.fileCount(activeChannel.id()) > 0)
     }
 
-    override suspend fun catchUpWithRemote(): AppResult<SyncStats>? {
-        if (syncMutex.isLocked) return null
+    override suspend fun catchUpWithRemote(force: Boolean): AppResult<SyncStats>? {
+        if (!force && syncMutex.isLocked) return null
         val since = System.currentTimeMillis() - lastFullSyncAt
-        if (since in 0 until CATCH_UP_INTERVAL_MS) return null
+        if (!force && since in 0 until CATCH_UP_INTERVAL_MS) return null
         return runSync(incremental = false, quiet = true)
     }
 

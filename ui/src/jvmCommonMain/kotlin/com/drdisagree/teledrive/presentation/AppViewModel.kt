@@ -102,8 +102,8 @@ class AppViewModel(
                 driveReady = true
                 syncRepository.syncOnStart()
                 catchUpBackup()
-                viewModelScope.launch { syncRepository.catchUpWithRemote() }
                 startFollowing()
+                viewModelScope.launch { syncRepository.catchUpWithRemote() }
             }
             .launchIn(viewModelScope)
     }
@@ -123,8 +123,8 @@ class AppViewModel(
     fun onAppStarted() {
         viewModelScope.launch { appLockManager.onAppStarted() }
         if (driveReady) {
-            viewModelScope.launch { syncRepository.catchUpWithRemote() }
             startFollowing()
+            viewModelScope.launch { syncRepository.catchUpWithRemote(force = true) }
         }
     }
 

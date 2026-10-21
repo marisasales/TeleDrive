@@ -24,7 +24,7 @@ interface SyncRepository {
      * Renames and moves edit existing messages, which [incrementalSync] never reads.
      * Reports no progress, and returns null when skipped.
      */
-    suspend fun catchUpWithRemote(): AppResult<SyncStats>?
+    suspend fun catchUpWithRemote(force: Boolean = false): AppResult<SyncStats>?
 
     /** Runs until canceled, while the app is in the foreground. */
     suspend fun followRemoteChanges()

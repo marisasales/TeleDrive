@@ -68,6 +68,38 @@ class RemoteChangesSyncTest {
     }
 
     @Test
+    fun `forced catch up applies remote folder changes inside throttle window`() = runBlocking {
+        telegram.documents = listOf(document(20, harness.caption(manifest("f1", "a.jpg"))))
+        val sync = harness.newSync()
+        sync.fullResync()
+
+        telegram.publishFolderState(
+            RemoteFolderState(folders = listOf(folder("trips", "Trips")))
+        )
+        telegram.documents = listOf(
+            document(
+                20,
+                harness.caption(
+                    manifest(
+                        "f1",
+                        "b.jpg",
+                        folderPath = "Trips",
+                        folderId = "trips",
+                        modifiedAt = 3_000L
+                    )
+                )
+            )
+        )
+
+        assertNull(sync.catchUpWithRemote())
+        assertNotNull(sync.catchUpWithRemote(force = true))
+        val local = database.fileDao().byId("f1")
+        assertEquals("b.jpg", local?.name)
+        assertEquals("trips", local?.folderId)
+        assertEquals("Trips", database.folderDao().byId("trips")?.name)
+    }
+
+    @Test
     fun `catch up never shows the rebuilding indicator`() = runBlocking {
         telegram.documents = listOf(document(20, harness.caption(manifest("f1", "a.jpg"))))
         val sync = harness.newSync()
