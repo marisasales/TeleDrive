@@ -3,6 +3,7 @@ package com.drdisagree.teledrive.data.repository
 import com.drdisagree.teledrive.core.common.AppError
 import com.drdisagree.teledrive.core.common.AppResult
 import com.drdisagree.teledrive.core.common.SafeLog
+import com.drdisagree.teledrive.core.crypto.CredentialCipher
 import com.drdisagree.teledrive.core.proxy.ProxyProbe
 import com.drdisagree.teledrive.core.proxy.ProxyProbeResult
 import com.drdisagree.teledrive.core.telegram.TelegramClient
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlin.io.encoding.Base64
 
 /**
  * Kept here, not in TDLib: an auth reset deletes the session database along with the only working
@@ -26,7 +28,8 @@ class ProxyRepositoryImpl(
     private val proxyDao: ProxyDao,
     private val settingsRepository: SettingsRepository,
     private val telegramClient: TelegramClient,
-    private val proxyProbe: ProxyProbe
+    private val proxyProbe: ProxyProbe,
+    private val credentialCipher: CredentialCipher
 ) : ProxyRepository {
 
     override fun observeProxies(): Flow<List<ProxyServer>> = combine(
@@ -144,9 +147,9 @@ class ProxyRepositoryImpl(
         type = type,
         host = host,
         port = port,
-        username = username,
-        password = password,
-        secret = secret,
+        username = username.decryptIfEncrypted(),
+        password = password.decryptIfEncrypted(),
+        secret = secret.decryptIfEncrypted(),
         isActive = isActive
     )
 
@@ -156,9 +159,9 @@ class ProxyRepositoryImpl(
         type = type,
         host = host,
         port = port,
-        username = username?.takeIf { it.isNotBlank() },
-        password = password?.takeIf { it.isNotBlank() },
-        secret = secret?.takeIf { it.isNotBlank() },
+        username = username.encryptForStorage(),
+        password = password.encryptForStorage(),
+        secret = secret.encryptForStorage(),
         addedAt = System.currentTimeMillis()
     )
 
@@ -171,8 +174,18 @@ class ProxyRepositoryImpl(
         secret = secret
     )
 
+    private fun String?.encryptForStorage(): String? = this
+        ?.takeIf { it.isNotBlank() }
+        ?.let { ENCRYPTED_PREFIX + Base64.encode(credentialCipher.encrypt(it.encodeToByteArray())) }
+
+    private fun String?.decryptIfEncrypted(): String? = this?.let { value ->
+        if (!value.startsWith(ENCRYPTED_PREFIX)) value
+        else credentialCipher.decrypt(Base64.decode(value.removePrefix(ENCRYPTED_PREFIX))).decodeToString()
+    }
+
     private companion object {
         const val TAG = "ProxyRepository"
         const val UNAUTHORIZED = 401
+        const val ENCRYPTED_PREFIX = "enc:v1:"
     }
 }
