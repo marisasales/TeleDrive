@@ -6,7 +6,10 @@ import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import java.net.InetSocketAddress
 import java.net.URLEncoder
+import java.security.MessageDigest
+import java.security.SecureRandom
 import java.nio.charset.StandardCharsets
+import java.util.Base64
 import java.util.concurrent.Executors
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
@@ -32,11 +35,13 @@ class MediaStreamServer {
             server = it
         }
         active?.shutdown()
-        active = ActiveStream(factory(), fileMimeType.ifBlank { FALLBACK_MIME })
+        val tokenBytes = ByteArray(TOKEN_BYTES).also(secureRandom::nextBytes)
+        val token = Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes)
+        active = ActiveStream(factory(), fileMimeType.ifBlank { FALLBACK_MIME }, token)
         val encodedName = URLEncoder.encode(fileName, StandardCharsets.UTF_8)
             .replace("+", "%20")
-        val url = "http://$LOOPBACK:${running.address.port}$CONTEXT/$encodedName"
-        SafeLog.d(TAG, "serving $fileName as $url")
+        val url = "http://$LOOPBACK:${running.address.port}$CONTEXT/$encodedName?$TOKEN_QUERY=$token"
+        SafeLog.d(TAG, "serving media file $fileName")
         return url
     }
 
@@ -50,7 +55,7 @@ class MediaStreamServer {
 
     private fun handle(exchange: HttpExchange) {
         val stream = synchronized(this) { active }
-        if (stream == null || stream.closed) {
+        if (stream == null || stream.closed || !hasValidToken(exchange, stream)) {
             exchange.sendResponseHeaders(404, -1)
             exchange.close()
             return
@@ -60,6 +65,17 @@ class MediaStreamServer {
                 SafeLog.d(TAG, "stream connection ended: ${it::class.simpleName} ${it.message}")
             }
         exchange.close()
+    }
+
+    private fun hasValidToken(exchange: HttpExchange, stream: ActiveStream): Boolean {
+        val supplied = exchange.requestURI.rawQuery
+            ?.split('&')
+            ?.firstOrNull { it.substringBefore('=') == TOKEN_QUERY }
+            ?.substringAfter('=', missingDelimiterValue = "")
+            ?: return false
+        val candidate = supplied.toByteArray(StandardCharsets.US_ASCII)
+        val expected = stream.token.toByteArray(StandardCharsets.US_ASCII)
+        return MessageDigest.isEqual(candidate, expected)
     }
 
     private fun respond(exchange: HttpExchange, stream: ActiveStream) {
@@ -129,5 +145,8 @@ class MediaStreamServer {
         const val CHUNK = 256 * 1024
         const val FALLBACK_MIME = "application/octet-stream"
         const val TAG = "MediaStreamServer"
+        const val TOKEN_QUERY = "token"
+        const val TOKEN_BYTES = 32
+        val secureRandom = SecureRandom()
     }
 }

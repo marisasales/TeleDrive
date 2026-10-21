@@ -9,7 +9,8 @@ import kotlinx.coroutines.sync.Mutex
 
 internal class ActiveStream(
     val source: MediaByteSource,
-    val mimeType: String
+    val mimeType: String,
+    val token: String
 ) {
     val readLock = Mutex()
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
