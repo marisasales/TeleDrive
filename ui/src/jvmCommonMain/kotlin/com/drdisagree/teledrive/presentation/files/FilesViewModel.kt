@@ -16,6 +16,9 @@ import com.drdisagree.teledrive.domain.model.DriveFolder
 import com.drdisagree.teledrive.domain.model.FileQuerySpec
 import com.drdisagree.teledrive.domain.model.FileSortField
 import com.drdisagree.teledrive.domain.model.SortDirection
+import com.drdisagree.teledrive.domain.model.TelegramImportChat
+import com.drdisagree.teledrive.core.telegram.RemoteDocument
+import com.drdisagree.teledrive.core.telegram.RemoteDocumentPage
 import com.drdisagree.teledrive.domain.model.UserPreferences
 import com.drdisagree.teledrive.domain.repository.FileRepository
 import com.drdisagree.teledrive.domain.repository.SettingsRepository
@@ -533,6 +536,28 @@ class FilesViewModel(
 
     suspend fun parentFolderId(id: String): String? = fileRepository.getFolder(id)?.parentId
 
+    suspend fun listTelegramImportChats(): List<TelegramImportChat> =
+        fileRepository.listTelegramImportChats()
+
+    suspend fun telegramImportDocuments(
+        chatId: Long,
+        fromMessageId: Long = 0,
+        limit: Int = TELEGRAM_IMPORT_PAGE_SIZE
+    ): RemoteDocumentPage = fileRepository.telegramImportDocuments(chatId, fromMessageId, limit)
+
+    suspend fun importTelegramDocument(
+        document: RemoteDocument,
+        targetFolderId: String?,
+        confirmUnencrypted: Boolean
+    ): AppResult<DriveFile> = fileRepository.importTelegramDocument(
+        document,
+        targetFolderId,
+        confirmUnencrypted
+    )
+
+    suspend fun remoteImportNeedsEncryptionWarning(): Boolean =
+        settingsRepository.preferences.first().encryptFiles
+
     private val _deleteConsentRequests =
         MutableSharedFlow<DeleteConsentRequest>(extraBufferCapacity = 1)
     val deleteConsentRequests = _deleteConsentRequests.asSharedFlow()
@@ -748,5 +773,6 @@ class FilesViewModel(
     companion object {
         private const val MIN_REFRESH_VISIBLE_MS = 700L
         private const val MAX_BREADCRUMB_DEPTH = 64
+        private const val TELEGRAM_IMPORT_PAGE_SIZE = 40
     }
 }
