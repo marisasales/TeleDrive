@@ -23,12 +23,17 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.drdisagree.teledrive.core.common.AppNotifications
 import com.drdisagree.teledrive.core.files.PendingShare
 import com.drdisagree.teledrive.core.media.PipController
+import com.drdisagree.teledrive.domain.model.AppTheme
 import com.drdisagree.teledrive.domain.repository.SettingsRepository
 import com.drdisagree.teledrive.presentation.platform.ProvidePlatformActions
+import com.drdisagree.teledrive.presentation.theme.BlueDarkColorScheme
+import com.drdisagree.teledrive.presentation.theme.BlueLightColorScheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.koin.android.ext.android.inject
 
 /** BiometricPrompt requires a FragmentActivity. */
@@ -42,11 +47,20 @@ class MainActivity : FragmentActivity() {
      * The launch theme can only name a static color, so the window is repainted with the theme's
      * color to hide the seam.
      */
-    private fun applyWindowBackground() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+    private fun applyWindowBackground(theme: AppTheme, dynamicColor: Boolean) {
         val nightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        val dark = nightMode == Configuration.UI_MODE_NIGHT_YES
-        val scheme = if (dark) dynamicDarkColorScheme(this) else dynamicLightColorScheme(this)
+        val dark = when (theme) {
+            AppTheme.LIGHT -> false
+            AppTheme.DARK -> true
+            AppTheme.SYSTEM -> nightMode == Configuration.UI_MODE_NIGHT_YES
+        }
+        val scheme = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (dark) dynamicDarkColorScheme(this) else dynamicLightColorScheme(this)
+        } else if (dark) {
+            BlueDarkColorScheme
+        } else {
+            BlueLightColorScheme
+        }
         window.setBackgroundDrawable(scheme.background.toArgb().toDrawable())
     }
 
@@ -137,7 +151,13 @@ class MainActivity : FragmentActivity() {
             statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
         )
-        applyWindowBackground()
+        val initialPreferences = runCatching {
+            runBlocking { settingsRepository.preferences.first() }
+        }.getOrNull()
+        applyWindowBackground(
+            theme = initialPreferences?.theme ?: AppTheme.SYSTEM,
+            dynamicColor = initialPreferences?.dynamicColor ?: true
+        )
         observeScreenshotProtection()
         handleIntent(intent)
         setContent {
