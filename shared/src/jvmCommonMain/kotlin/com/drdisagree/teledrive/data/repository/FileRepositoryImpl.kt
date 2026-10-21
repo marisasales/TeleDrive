@@ -19,6 +19,8 @@ import com.drdisagree.teledrive.core.files.MimeTypes
 import com.drdisagree.teledrive.core.files.NoteStore
 import com.drdisagree.teledrive.core.publish.PublishScheduler
 import com.drdisagree.teledrive.core.telegram.TelegramClient
+import com.drdisagree.teledrive.core.telegram.RemoteDocument
+import com.drdisagree.teledrive.core.telegram.RemoteDocumentPage
 import com.drdisagree.teledrive.core.telegram.TelegramDownloadEvent
 import com.drdisagree.teledrive.core.telegram.TelegramException
 import com.drdisagree.teledrive.data.local.FileQueryBuilder
@@ -39,6 +41,7 @@ import com.drdisagree.teledrive.domain.model.LinkMetadata
 import com.drdisagree.teledrive.domain.model.MediaAlbum
 import com.drdisagree.teledrive.domain.model.SortDirection
 import com.drdisagree.teledrive.domain.model.StorageSlice
+import com.drdisagree.teledrive.domain.model.TelegramImportChat
 import com.drdisagree.teledrive.domain.repository.FileRepository
 import com.drdisagree.teledrive.domain.repository.SettingsRepository
 import com.drdisagree.teledrive.domain.usecase.FolderCycleCheck
@@ -363,6 +366,122 @@ class FileRepositoryImpl(
         } else {
             AppResult.Success(copied)
         }
+    }
+
+    override suspend fun listTelegramImportChats(): List<TelegramImportChat> =
+        telegramClient.listImportableChats()
+
+    override suspend fun telegramImportDocuments(
+        chatId: Long,
+        fromMessageId: Long,
+        limit: Int
+    ): RemoteDocumentPage = telegramClient.fetchDocuments(chatId, fromMessageId, limit)
+
+    override suspend fun importTelegramDocument(
+        document: RemoteDocument,
+        targetFolderId: String?,
+        confirmUnencrypted: Boolean
+    ): AppResult<DriveFile> {
+        val destinationChatId = activeChannel.id()
+            ?: return AppResult.Failure(AppError.NotFound)
+        val preferences = settingsRepository.preferences.first()
+        if (preferences.encryptFiles && !confirmUnencrypted) {
+            return AppResult.Failure(
+                AppError.UnsupportedOperation("Remote Telegram copies are not encrypted by TeleDrive")
+            )
+        }
+        if (targetFolderId != null) {
+            val folder = folderDao.byId(targetFolderId)
+            if (folder == null || folder.chatId != destinationChatId) {
+                return AppResult.Failure(AppError.NotFound)
+            }
+        }
+
+        val existingNames = fileDao.namesInFolder(targetFolderId).toMutableList()
+        val desiredName = FileNameUtils.sanitize(document.fileName).ifBlank { "telegram-file" }
+        val name = FileNameUtils.uniqueName(desiredName) { candidate ->
+            existingNames.any { it.equals(candidate, ignoreCase = true) }
+        }
+        val now = System.currentTimeMillis()
+        val candidate = FileEntity(
+            id = UUID.randomUUID().toString(),
+            folderId = targetFolderId,
+            name = name,
+            sizeBytes = document.sizeBytes,
+            mimeType = document.mimeType,
+            category = FileCategory.fromMimeType(document.mimeType),
+            localPath = null,
+            contentHash = null,
+            chatId = destinationChatId,
+            messageId = null,
+            remoteFileId = null,
+            remoteUniqueId = null,
+            backupState = BackupState.NONE,
+            isEncrypted = false,
+            createdAt = document.dateSeconds.toLong() * 1_000L,
+            modifiedAt = now,
+            addedAt = now
+        )
+        return when (
+            val copied = copyRemoteMessage(
+                candidate = candidate,
+                sourceChatId = document.chatId,
+                sourceMessageId = document.messageId,
+                destinationChatId = destinationChatId
+            )
+        ) {
+            is AppResult.Success -> {
+                fileDao.upsert(copied.value)
+                AppResult.Success(copied.value.toDomain())
+            }
+            is AppResult.Failure -> copied
+        }
+    }
+
+    private suspend fun copyRemoteMessage(
+        candidate: FileEntity,
+        sourceChatId: Long,
+        sourceMessageId: Long,
+        destinationChatId: Long
+    ): AppResult<FileEntity> = try {
+        val manifest = RemoteFileManifest(
+            fileId = candidate.id,
+            name = candidate.name,
+            folderPath = folderPathResolver.pathOf(candidate.folderId),
+            folderId = candidate.folderId,
+            mimeType = candidate.mimeType,
+            sizeBytes = candidate.sizeBytes,
+            contentHash = null,
+            hidden = candidate.isHidden,
+            archived = candidate.isArchived,
+            favorite = candidate.isFavorite,
+            encrypted = false,
+            createdAt = candidate.createdAt,
+            modifiedAt = candidate.modifiedAt,
+            width = candidate.width,
+            height = candidate.height,
+            durationMs = candidate.durationMs
+        )
+        val copied = telegramClient.copyMessage(
+            chatId = destinationChatId,
+            fromChatId = sourceChatId,
+            messageId = sourceMessageId,
+            caption = manifestCodec.encode(manifest, encrypt = false)
+        )
+        AppResult.Success(
+            candidate.copy(
+                chatId = copied.chatId,
+                messageId = copied.messageId,
+                remoteFileId = copied.remoteFileId,
+                remoteUniqueId = copied.uniqueFileId,
+                backupState = BackupState.BACKED_UP
+            )
+        )
+    } catch (e: TelegramException) {
+        AppResult.Failure(
+            if (e.isRateLimit) AppError.RateLimited(e.retryAfterSeconds ?: 0)
+            else AppError.TelegramError(e.code, e.message)
+        )
     }
 
     private suspend fun copyRemote(

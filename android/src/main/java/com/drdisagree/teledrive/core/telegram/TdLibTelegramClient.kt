@@ -9,6 +9,7 @@ import com.drdisagree.teledrive.BuildConfig
 import com.drdisagree.teledrive.core.common.SafeLog
 import com.drdisagree.teledrive.domain.model.Country
 import com.drdisagree.teledrive.domain.model.LinkMetadata
+import com.drdisagree.teledrive.domain.model.TelegramImportChat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -649,6 +650,28 @@ class TdLibTelegramClient(
             }
     }
 
+    override suspend fun listImportableChats(): List<TelegramImportChat> {
+        awaitAuthorized()
+        val chatIds = LinkedHashSet<Long>()
+        for (chatList in listOf(TdApi.ChatListMain(), TdApi.ChatListArchive())) {
+            loadEveryChat(chatList)
+            runCatching { send(TdApi.GetChats(chatList, CHAT_LIST_LIMIT)) }
+                .getOrNull()?.chatIds?.forEach(chatIds::add)
+        }
+
+        return chatIds.mapNotNull { chatId ->
+            runCatching {
+                val chat = send<TdApi.Chat>(TdApi.GetChat(chatId))
+                val isChannel = when (val type = chat.type) {
+                    is TdApi.ChatTypeBasicGroup -> false
+                    is TdApi.ChatTypeSupergroup -> type.isChannel
+                    else -> return@runCatching null
+                }
+                TelegramImportChat(chatId = chatId, title = chat.title, isChannel = isChannel)
+            }.getOrNull()
+        }.sortedBy { it.title.lowercase() }
+    }
+
     private suspend fun validateCandidates(candidates: Set<Long>): List<StorageChannel> =
         candidates.mapNotNull { chatId ->
             runCatching {
@@ -949,6 +972,54 @@ class TdLibTelegramClient(
             is TdApi.Message -> sent.toRemoteDocument()
                 ?: throw TelegramException(500, "Copy did not complete")
 
+            else -> throw TelegramException(500, "Copy did not complete")
+        }
+    }
+
+    override suspend fun copyMessage(
+        chatId: Long,
+        fromChatId: Long,
+        messageId: Long,
+        caption: String
+    ): RemoteDocument {
+        val content = TdApi.InputMessageForwarded(
+            fromChatId,
+            messageId,
+            false,
+            false,
+            0,
+            TdApi.MessageCopyOptions(
+                true,
+                true,
+                TdApi.FormattedText(caption, emptyArray()),
+                false
+            )
+        )
+        val subscribed = CompletableDeferred<Unit>()
+        val pendingMessageId = CompletableDeferred<Long>()
+        val sent = coroutineScope {
+            val outcome = async {
+                withTimeoutOrNull(COPY_TIMEOUT_MS.milliseconds) {
+                    updates.onSubscription { subscribed.complete(Unit) }.first { update ->
+                        val pendingId = pendingMessageId.await()
+                        (update is TdApi.UpdateMessageSendSucceeded && update.oldMessageId == pendingId) ||
+                                (update is TdApi.UpdateMessageSendFailed && update.oldMessageId == pendingId)
+                    }
+                }
+            }
+            subscribed.await()
+            val pending: TdApi.Message = paced {
+                send(TdApi.SendMessage(chatId, null, null, null, null, content))
+            }
+            pendingMessageId.complete(pending.id)
+            outcome.await() ?: pending
+        }
+        return when (sent) {
+            is TdApi.UpdateMessageSendSucceeded -> sent.message.toRemoteDocument()
+                ?: throw TelegramException(500, "Copied message has no supported media")
+            is TdApi.UpdateMessageSendFailed -> throw TelegramException.from(sent.error.code, sent.error.message)
+            is TdApi.Message -> sent.toRemoteDocument()
+                ?: throw TelegramException(500, "Copy did not complete")
             else -> throw TelegramException(500, "Copy did not complete")
         }
     }

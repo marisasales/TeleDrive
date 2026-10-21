@@ -2,6 +2,7 @@ package com.drdisagree.teledrive.core.telegram
 
 import com.drdisagree.teledrive.domain.model.Country
 import com.drdisagree.teledrive.domain.model.LinkMetadata
+import com.drdisagree.teledrive.domain.model.TelegramImportChat
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -16,6 +17,9 @@ interface TelegramClient {
 
     /** Scanning every chat is skipped once a name search finds all of [knownChatIds]. */
     suspend fun listStorageChannels(knownChatIds: List<Long> = emptyList()): List<StorageChannel>
+
+    /** Chats the signed-in user can browse for a remote, no-download import. */
+    suspend fun listImportableChats(): List<TelegramImportChat> = emptyList()
 
     suspend fun createStorageChannel(label: String): StorageChannel
 
@@ -98,6 +102,14 @@ interface TelegramClient {
         remoteFileId: String,
         fileName: String,
         mimeType: String,
+        caption: String
+    ): RemoteDocument
+
+    /** Copies the original accessible message, preserving its media type (including native photos). */
+    suspend fun copyMessage(
+        chatId: Long,
+        fromChatId: Long,
+        messageId: Long,
         caption: String
     ): RemoteDocument
 

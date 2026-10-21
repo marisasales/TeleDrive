@@ -3,6 +3,8 @@ package com.drdisagree.teledrive.domain.repository
 import androidx.paging.PagingData
 import com.drdisagree.teledrive.core.common.AppResult
 import com.drdisagree.teledrive.core.files.LocalCleanup
+import com.drdisagree.teledrive.core.telegram.RemoteDocument
+import com.drdisagree.teledrive.core.telegram.RemoteDocumentPage
 import com.drdisagree.teledrive.domain.model.DriveFile
 import com.drdisagree.teledrive.domain.model.DriveFolder
 import com.drdisagree.teledrive.domain.model.FileQuerySpec
@@ -11,6 +13,7 @@ import com.drdisagree.teledrive.domain.model.LinkMetadata
 import com.drdisagree.teledrive.domain.model.MediaAlbum
 import com.drdisagree.teledrive.domain.model.SortDirection
 import com.drdisagree.teledrive.domain.model.StorageSlice
+import com.drdisagree.teledrive.domain.model.TelegramImportChat
 import kotlinx.coroutines.flow.Flow
 
 interface FileRepository {
@@ -81,6 +84,17 @@ interface FileRepository {
      * made.
      */
     suspend fun copyFiles(ids: List<String>, targetFolderId: String?): AppResult<Int>
+
+    suspend fun listTelegramImportChats(): List<TelegramImportChat>
+
+    suspend fun telegramImportDocuments(chatId: Long, fromMessageId: Long, limit: Int): RemoteDocumentPage
+
+    /** Copies through Telegram; consent is required when file encryption is enabled. */
+    suspend fun importTelegramDocument(
+        document: RemoteDocument,
+        targetFolderId: String?,
+        confirmUnencrypted: Boolean
+    ): AppResult<DriveFile>
 
     suspend fun moveFolder(id: String, targetParentId: String?): AppResult<Unit>
 
