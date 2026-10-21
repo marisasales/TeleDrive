@@ -48,15 +48,20 @@ class TrashViewModel(
         val folderIds = items.filterIsInstance<TrashItem.Folder>().map { it.folder.id }
         items to trashRepository.trashedChildCounts(folderIds)
     }
+    private val trashTreeAndSize = combine(
+        trashTree,
+        trashRepository.observeTrashSize()
+    ) { tree, totalSizeBytes -> tree to totalSizeBytes }
 
     val uiState: StateFlow<TrashUiState> = combine(
-        trashTree,
+        trashTreeAndSize,
         combine(selection, working) { selected, busy -> selected to busy },
         settingsRepository.preferences,
         expanded,
         cache
-    ) { tree, selectionAndWork, prefs, expandedIds, loaded ->
+    ) { treeAndSize, selectionAndWork, prefs, expandedIds, loaded ->
         val (selected, busy) = selectionAndWork
+        val (tree, totalSizeBytes) = treeAndSize
         val (items, rootCounts) = tree
         val childMap = loaded.children
         val childCounts = rootCounts + loaded.counts
@@ -66,7 +71,8 @@ class TrashViewModel(
             selection = selected,
             working = busy,
             autoClearDays = prefs.trashAutoClearDays,
-            loading = false
+            loading = false,
+            totalSizeBytes = totalSizeBytes
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TrashUiState())
 

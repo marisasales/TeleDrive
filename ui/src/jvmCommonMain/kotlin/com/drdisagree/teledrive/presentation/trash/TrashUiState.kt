@@ -9,7 +9,8 @@ data class TrashUiState(
     val selection: Set<String> = emptySet(),
     val autoClearDays: Int = 30,
     val working: UiText? = null,
-    val loading: Boolean = true
+    val loading: Boolean = true,
+    val totalSizeBytes: Long = 0L
 ) {
     val selectionMode: Boolean get() = selection.isNotEmpty()
 }

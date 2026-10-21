@@ -8,6 +8,8 @@ interface TrashRepository {
 
     fun observeTrash(): Flow<List<TrashItem>>
 
+    fun observeTrashSize(): Flow<Long>
+
     /** So contents left inside an already trashed parent show under it, not loose in the trash. */
     suspend fun repairTrashTree()
 

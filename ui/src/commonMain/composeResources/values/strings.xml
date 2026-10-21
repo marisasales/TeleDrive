@@ -501,6 +501,7 @@
 
     <!-- Trash -->
     <string name="trash">Trash</string>
+    <string name="trash_total_size">Total size: %1$s</string>
     <string name="trash_delete_permanently">Delete permanently?</string>
     <string name="trash_delete_selected_message">%1$d items, including everything inside any selected folder, will be permanently deleted from this device and from Telegram.</string>
     <string name="trash_empty">Trash is empty</string>

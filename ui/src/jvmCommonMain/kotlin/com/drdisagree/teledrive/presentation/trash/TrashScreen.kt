@@ -69,6 +69,7 @@ import com.drdisagree.teledrive.resources.common_select
 import com.drdisagree.teledrive.resources.common_select_all
 import com.drdisagree.teledrive.resources.common_selection_count
 import com.drdisagree.teledrive.resources.trash
+import com.drdisagree.teledrive.resources.trash_total_size
 import com.drdisagree.teledrive.resources.trash_delete_permanently
 import com.drdisagree.teledrive.resources.trash_delete_selected_message
 import com.drdisagree.teledrive.resources.trash_empty
@@ -169,7 +170,19 @@ fun TrashScreen(
             } else {
                 TopAppBar(
                     colors = liftedTopAppBarColors(lifted),
-                    title = { Text(stringResource(Res.string.trash)) },
+                    title = {
+                        Column {
+                            Text(stringResource(Res.string.trash))
+                            Text(
+                                text = stringResource(
+                                    Res.string.trash_total_size,
+                                    Formatters.bytes(state.totalSizeBytes)
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(

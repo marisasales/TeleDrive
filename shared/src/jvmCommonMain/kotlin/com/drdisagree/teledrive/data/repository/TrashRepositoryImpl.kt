@@ -56,6 +56,11 @@ class TrashRepositoryImpl(
             }
         }
 
+    override fun observeTrashSize(): Flow<Long> =
+        activeChannel.observe().flatMapLatest { chatId ->
+            fileDao.observeTrashSize(chatId)
+        }
+
     override suspend fun trashedChildCounts(folderIds: List<String>): Map<String, Int> {
         if (folderIds.isEmpty()) return emptyMap()
         val counts = mutableMapOf<String, Int>()

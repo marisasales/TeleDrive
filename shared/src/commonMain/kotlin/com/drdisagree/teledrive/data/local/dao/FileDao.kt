@@ -373,6 +373,27 @@ interface FileDao {
     @Query("SELECT * FROM files WHERE trashedAt IS NOT NULL AND chatId IS :chatId")
     suspend fun trashInChat(chatId: Long?): List<FileEntity>
 
+    @Query(
+        """WITH RECURSIVE active_trash_folders(id) AS (
+               SELECT id FROM folders WHERE trashedAt IS NOT NULL AND chatId IS :chatId
+               UNION
+               SELECT child.id FROM folders AS child
+               JOIN active_trash_folders AS parent ON child.preTrashParentId = parent.id
+               WHERE child.trashedAt IS NOT NULL AND child.chatId IS NULL
+           )
+           SELECT COALESCE(SUM(sizeBytes), 0) FROM files
+            WHERE trashedAt IS NOT NULL
+              AND (
+                    (chatId IS :chatId AND
+                     (preTrashFolderId IS NULL OR preTrashFolderId NOT IN
+                        (SELECT id FROM folders WHERE trashedAt IS NOT NULL)))
+                    OR
+                    ((chatId IS :chatId OR chatId IS NULL) AND
+                     preTrashFolderId IN (SELECT id FROM active_trash_folders))
+                  )"""
+    )
+    fun observeTrashSize(chatId: Long?): Flow<Long>
+
     @Query("DELETE FROM files WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<String>)
 
