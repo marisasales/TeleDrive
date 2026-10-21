@@ -1202,8 +1202,7 @@ private fun FilesGridContent(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        val showGridSections = isDesktop &&
-                state.viewMode == ViewMode.GRID &&
+        val showGridSections = state.viewMode == ViewMode.GRID &&
                 state.folders.isNotEmpty() &&
                 files.itemCount > 0
 
