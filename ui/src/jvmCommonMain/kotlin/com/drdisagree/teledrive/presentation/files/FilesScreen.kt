@@ -126,6 +126,8 @@ import com.drdisagree.teledrive.domain.model.DriveFile
 import com.drdisagree.teledrive.domain.model.DriveFolder
 import com.drdisagree.teledrive.domain.model.FileSortField
 import com.drdisagree.teledrive.domain.model.SortDirection
+import com.drdisagree.teledrive.domain.model.TelegramImportChat
+import com.drdisagree.teledrive.core.telegram.RemoteDocument
 import com.drdisagree.teledrive.domain.model.ViewMode
 import com.drdisagree.teledrive.presentation.common.AppBackHandler
 import com.drdisagree.teledrive.presentation.common.CollectSnackbarMessages
@@ -264,6 +266,11 @@ fun FilesScreen(
     var showAddMenu by remember { mutableStateOf(false) }
     var showMovePicker by remember { mutableStateOf(false) }
     var showCopyPicker by remember { mutableStateOf(false) }
+    var showTelegramImport by remember { mutableStateOf(false) }
+    var showTelegramImportDestination by remember { mutableStateOf(false) }
+    var selectedTelegramDocuments by remember { mutableStateOf<List<RemoteDocument>>(emptyList()) }
+    var remoteImportConfirmedUnencrypted by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     var showSelectionOverflow by remember { mutableStateOf(false) }
     var confirmTrash by remember { mutableStateOf(false) }
     val uploadPicker = LocalMultiFilePicker.current
@@ -320,7 +327,8 @@ fun FilesScreen(
     val keyboardShortcutModifier = if (isDesktop) {
         Modifier.onPreviewKeyEvent { event ->
             val modalOrEditorOpen = showCreateFolder || showSortMenu || showAddMenu ||
-                    showMovePicker || showCopyPicker || showSelectionOverflow || confirmTrash ||
+                    showMovePicker || showCopyPicker || showTelegramImport ||
+                    showTelegramImportDestination || showSelectionOverflow || confirmTrash ||
                     confirmDeleteLocal || renameTarget != null || infoTarget != null
             if (modalOrEditorOpen || event.type != KeyEventType.KeyDown || !event.isCtrlPressed) {
                 false
@@ -690,6 +698,14 @@ fun FilesScreen(
                             FloatingActionButtonMenuItem(
                                 onClick = {
                                     showAddMenu = false
+                                    showTelegramImport = true
+                                },
+                                icon = { Icon(Icons.Filled.Download, contentDescription = null) },
+                                text = { Text("Importar do Telegram") }
+                            )
+                            FloatingActionButtonMenuItem(
+                                onClick = {
+                                    showAddMenu = false
                                     onPickUploads()
                                 },
                                 icon = { Icon(Icons.Filled.Upload, contentDescription = null) },
@@ -782,14 +798,23 @@ fun FilesScreen(
         }
     }
 
-    if (showMovePicker || showCopyPicker) {
+    if (showMovePicker || showCopyPicker || showTelegramImportDestination) {
         val moving = showMovePicker
+        val importingTelegram = showTelegramImportDestination
         FolderPickerHost(
             title = stringResource(
-                if (moving) Res.string.files_move_to else Res.string.files_copy_to
+                when {
+                    importingTelegram -> Res.string.files_copy_to
+                    moving -> Res.string.files_move_to
+                    else -> Res.string.files_copy_to
+                }
             ),
             confirmLabel = stringResource(
-                if (moving) Res.string.files_move_here else Res.string.files_copy_here
+                when {
+                    importingTelegram -> Res.string.files_copy_here
+                    moving -> Res.string.files_move_here
+                    else -> Res.string.files_copy_here
+                }
             ),
             loadChildren = viewModel::childFolders,
             createFolder = viewModel::createFolderIn,
@@ -797,12 +822,53 @@ fun FilesScreen(
             onConfirm = { target ->
                 showMovePicker = false
                 showCopyPicker = false
-                if (moving) viewModel.moveSelected(target) else viewModel.copySelected(target)
+                showTelegramImportDestination = false
+                when {
+                    importingTelegram -> {
+                        showTelegramImport = false
+                        val selected = selectedTelegramDocuments
+                        scope.launch {
+                            var imported = 0
+                            var failed = 0
+                            selected.forEach { document ->
+                                when (viewModel.importTelegramDocument(
+                                    document,
+                                    target,
+                                    confirmUnencrypted = remoteImportConfirmedUnencrypted
+                                )) {
+                                    is com.drdisagree.teledrive.core.common.AppResult.Success -> imported++
+                                    is com.drdisagree.teledrive.core.common.AppResult.Failure -> failed++
+                                }
+                            }
+                            selectedTelegramDocuments = emptyList()
+                            remoteImportConfirmedUnencrypted = false
+                            snackbarHostState.showSnackbar(
+                                if (failed == 0) "Importados: $imported"
+                                else "Importados: $imported · Falhas: $failed"
+                            )
+                        }
+                    }
+                    moving -> viewModel.moveSelected(target)
+                    else -> viewModel.copySelected(target)
+                }
             },
             onDismiss = {
                 showMovePicker = false
                 showCopyPicker = false
+                showTelegramImportDestination = false
             }
+        )
+    }
+    if (showTelegramImport) {
+        TelegramImportDialog(
+            viewModel = viewModel,
+            onChooseDestination = { documents, confirmedUnencrypted ->
+                selectedTelegramDocuments = documents
+                remoteImportConfirmedUnencrypted = confirmedUnencrypted
+                showTelegramImport = false
+                showTelegramImportDestination = true
+            },
+            onDismiss = { showTelegramImport = false }
         )
     }
     if (showCreateFolder) {
