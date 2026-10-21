@@ -2,6 +2,7 @@ package com.drdisagree.teledrive.desktop
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -43,6 +44,7 @@ import com.drdisagree.teledrive.presentation.TeleDriveApp
 import com.drdisagree.teledrive.presentation.theme.systemDarkTheme
 import com.drdisagree.teledrive.resources.Res as SharedRes
 import com.drdisagree.teledrive.resources.app_name
+import java.awt.Color as AwtColor
 import java.awt.Dimension
 import javax.swing.JOptionPane
 import kotlin.system.exitProcess
@@ -50,6 +52,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -63,6 +66,9 @@ fun main() {
     SafeLog.verbose = true
     startKoin {
         modules(desktopModule)
+    }
+    val initialTheme = runBlocking {
+        getKoin().get<SettingsRepository>().preferences.first().theme
     }
     val storagePaths = getKoin().get<AppStoragePaths>()
     if (!SingleInstanceLock(storagePaths.filesDir).acquire()) {
@@ -119,14 +125,23 @@ fun main() {
             val settingsRepository = remember { getKoin().get<SettingsRepository>() }
             val theme by remember {
                 settingsRepository.preferences.map { it.theme }.distinctUntilChanged()
-            }.collectAsState(initial = AppTheme.SYSTEM)
+            }.collectAsState(initial = initialTheme)
             val systemDark = systemDarkTheme()
             val darkTitleBar = when (theme) {
                 AppTheme.LIGHT -> false
                 AppTheme.DARK -> true
                 AppTheme.SYSTEM -> systemDark
             }
-            LaunchedEffect(darkTitleBar) { WindowsTitleBar.setDark(window, darkTitleBar) }
+            SideEffect {
+                window.background = if (darkTitleBar) {
+                    AwtColor(17, 21, 27)
+                } else {
+                    AwtColor(245, 247, 250)
+                }
+            }
+            LaunchedEffect(darkTitleBar) {
+                WindowsTitleBar.setDark(window, darkTitleBar)
+            }
             CompositionLocalProvider(LocalFullscreenController provides fullscreenController) {
                 ProvideDesktopPlatformActions {
                     TeleDriveApp(
