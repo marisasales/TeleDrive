@@ -11,10 +11,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -69,12 +71,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -155,6 +160,7 @@ import com.drdisagree.teledrive.resources.home_storage_percent_min
 import com.drdisagree.teledrive.resources.home_transfer_history
 import com.drdisagree.teledrive.resources.home_transfer_history_subtitle
 import com.drdisagree.teledrive.resources.home_waiting_count
+import com.drdisagree.teledrive.resources.nav_files
 import com.drdisagree.teledrive.resources.trash
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
@@ -169,10 +175,10 @@ fun HomeScreen(
     onOpenFile: (String, PreviewSequence) -> Unit,
     onOpenFolder: (String) -> Unit,
     onOpenTransfers: () -> Unit,
-    onOpenTrash: () -> Unit,
     onOpenChannels: () -> Unit,
     onOpenCollection: (CollectionType) -> Unit,
     onOpenBackupSettings: () -> Unit,
+    onOpenFiles: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -272,15 +278,16 @@ fun HomeScreen(
             LoadingState(modifier = Modifier.padding(padding))
             return@Scaffold
         }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = padding.add(
-                horizontal = 16.dp,
-                top = 8.dp,
-                bottom = 24.dp + LocalBottomBarInset.current
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = padding.add(
+                    horizontal = 16.dp,
+                    top = 8.dp,
+                    bottom = 24.dp + LocalBottomBarInset.current
+                ),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             if (state.missingPermissions.isNotEmpty()) {
                 item {
                     PermissionWarningCard(
@@ -296,17 +303,18 @@ fun HomeScreen(
             if (capabilities.supportsAutoBackup) {
                 item {
                     BackupCard(
-                        state = state,
-                        scanning = scanning,
-                        onChooseFolders = onOpenBackupSettings,
-                        onScanNow = viewModel::scanNow,
-                        onBackUpPending = viewModel::backUpPending,
-                        onPause = viewModel::pauseBackup,
-                        onResume = viewModel::resumeBackup,
-                        onCancel = { confirmCancelBackup = it }
+                            state = state,
+                            scanning = scanning,
+                            onChooseFolders = onOpenBackupSettings,
+                            onScanNow = viewModel::scanNow,
+                            onBackUpPending = viewModel::backUpPending,
+                            onPause = viewModel::pauseBackup,
+                            onResume = viewModel::resumeBackup,
+                            onCancel = { confirmCancelBackup = it }
                     )
                 }
             }
+
             if (state.favoriteFolders.isNotEmpty()) {
                 item {
                     SectionHeader(stringResource(Res.string.home_section_favorites))
@@ -394,10 +402,10 @@ fun HomeScreen(
                     activeTransferCount = state.activeTransferCount,
                     offlineBytes = state.offlineBytes,
                     onOpenCollection = onOpenCollection,
-                    onOpenTransfers = onOpenTransfers,
-                    onOpenTrash = onOpenTrash
+                    onOpenTransfers = onOpenTransfers
                 )
             }
+        }
         }
     }
 }
@@ -410,7 +418,7 @@ private fun CollectionLinks(
     offlineBytes: Long,
     onOpenCollection: (CollectionType) -> Unit,
     onOpenTransfers: () -> Unit,
-    onOpenTrash: () -> Unit
+    showTransferHistory: Boolean = true
 ) {
     GroupedList(horizontalPadding = 0.dp) {
         CollectionType.entries.forEach { collection ->
@@ -437,25 +445,19 @@ private fun CollectionLinks(
                 )
             }
         }
-        add {
-            CollectionRow(
-                icon = Icons.Filled.SwapVert,
-                title = stringResource(Res.string.home_transfer_history),
-                subtitle = if (activeTransferCount > 0) {
-                    stringResource(Res.string.home_active_transfers, activeTransferCount)
-                } else {
-                    stringResource(Res.string.home_transfer_history_subtitle)
-                },
-                onClick = onOpenTransfers
-            )
-        }
-        add {
-            CollectionRow(
-                icon = Icons.Filled.Delete,
-                title = stringResource(Res.string.trash),
-                subtitle = stringResource(Res.string.home_deleted_files_kept_removal),
-                onClick = onOpenTrash
-            )
+        if (showTransferHistory) {
+            add {
+                CollectionRow(
+                    icon = Icons.Filled.SwapVert,
+                    title = stringResource(Res.string.home_transfer_history),
+                    subtitle = if (activeTransferCount > 0) {
+                        stringResource(Res.string.home_active_transfers, activeTransferCount)
+                    } else {
+                        stringResource(Res.string.home_transfer_history_subtitle)
+                    },
+                    onClick = onOpenTransfers
+                )
+            }
         }
     }
 }
@@ -501,6 +503,235 @@ private fun SectionHeader(title: String) {
     )
 }
 
+@Composable
+private fun DesktopHomeOverviewCard(
+    state: HomeUiState,
+    storageSlices: List<StorageSlice>,
+    onOpenFiles: () -> Unit,
+    onOpenTransfers: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val connectionStatus = when {
+        state.offline -> Res.string.home_status_offline
+        state.connection == TelegramConnectionState.READY -> Res.string.home_status_connected
+        state.connection == TelegramConnectionState.UPDATING -> Res.string.home_status_syncing
+        else -> Res.string.home_status_connecting
+    }
+    val connectionIndicator = when {
+        state.offline -> ConnectionIndicator.OFFLINE
+        state.connection == TelegramConnectionState.READY -> ConnectionIndicator.CONNECTED
+        else -> ConnectionIndicator.WORKING
+    }
+    val totalBytes = remember(storageSlices) { storageSlices.sumOf { it.totalBytes } }
+    val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val detailColor = contentColor.copy(alpha = 0.82f)
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        shape = MaterialTheme.shapes.extraLarge
+    ) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val showSideBySide = maxWidth >= 760.dp && totalBytes > 0L
+            val donutSize = if (showSideBySide) {
+                (maxWidth * 0.19f).coerceIn(144.dp, 224.dp)
+            } else {
+                (maxWidth * 0.27f).coerceIn(112.dp, 184.dp)
+            }
+            if (showSideBySide) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    DesktopHomeActions(
+                        state = state,
+                        connectionStatus = connectionStatus,
+                        connectionIndicator = connectionIndicator,
+                        onOpenFiles = onOpenFiles,
+                        onOpenTransfers = onOpenTransfers,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Row(
+                        modifier = Modifier.weight(1.65f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StorageDonutChart(
+                            slices = storageSlices,
+                            totalBytes = totalBytes,
+                            contentColor = contentColor,
+                            modifier = Modifier.size(donutSize)
+                        )
+                        Spacer(Modifier.width(16.dp))
+                        StorageLegend(
+                            slices = storageSlices,
+                            totalBytes = totalBytes,
+                            modifier = Modifier.weight(1f),
+                            labelColor = contentColor,
+                            detailColor = detailColor
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    DesktopHomeActions(
+                        state = state,
+                        connectionStatus = connectionStatus,
+                        connectionIndicator = connectionIndicator,
+                        onOpenFiles = onOpenFiles,
+                        onOpenTransfers = onOpenTransfers
+                    )
+                    if (totalBytes > 0L) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            StorageDonutChart(
+                                slices = storageSlices,
+                                totalBytes = totalBytes,
+                                contentColor = contentColor,
+                                modifier = Modifier.size(donutSize)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            StorageLegend(
+                                slices = storageSlices,
+                                totalBytes = totalBytes,
+                                modifier = Modifier.weight(1f),
+                                labelColor = contentColor,
+                                detailColor = detailColor
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DesktopHomeActions(
+    state: HomeUiState,
+    connectionStatus: org.jetbrains.compose.resources.StringResource,
+    connectionIndicator: ConnectionIndicator,
+    onOpenFiles: () -> Unit,
+    onOpenTransfers: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ConnectionDot(status = connectionIndicator)
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = stringResource(connectionStatus),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+        Text(
+            text = pluralStringResource(Res.plurals.file_count, state.totalFiles, state.totalFiles),
+            style = MaterialTheme.typography.titleLargeEmphasized,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = onOpenFiles,
+                shapes = ButtonDefaults.shapes(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    contentColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) { Text(stringResource(Res.string.nav_files)) }
+            OutlinedButton(
+                onClick = onOpenTransfers,
+                shapes = ButtonDefaults.shapes(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
+                )
+            ) { Text(stringResource(Res.string.home_transfer_history)) }
+        }
+    }
+}
+
+@Composable
+private fun StorageDonutChart(
+    slices: List<StorageSlice>,
+    totalBytes: Long,
+    contentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val sliceColors = slices.map { it.category.chartColor() }
+    val sweepAngles = remember(slices) {
+        val populated = slices.filter { it.fileCount > 0 }
+        val bytes = populated.sumOf { it.totalBytes.coerceAtLeast(0L).toDouble() }
+        // Reserve a small visible arc for every nonempty category, then distribute
+        // the remaining angle by actual bytes. Legend percentages stay unchanged.
+        val minimumAngle = if (populated.isEmpty()) 0f else minOf(5.4f, 360f / populated.size)
+        val remainingAngle = (360f - minimumAngle * populated.size).coerceAtLeast(0f)
+        slices.map { slice ->
+            when {
+                slice.fileCount <= 0 -> 0f
+                bytes <= 0.0 -> 360f / populated.size
+                else -> minimumAngle +
+                    (slice.totalBytes.coerceAtLeast(0L).toDouble() / bytes * remainingAngle).toFloat()
+            }
+        }
+    }
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize().padding(7.dp)) {
+            val ringWidth = 16.dp.toPx()
+            val diameter = (minOf(size.width, size.height) - ringWidth).coerceAtLeast(0f)
+            val arcSize = Size(diameter, diameter)
+            val topLeft = Offset(
+                x = (size.width - diameter) / 2f,
+                y = (size.height - diameter) / 2f
+            )
+            drawArc(
+                color = contentColor.copy(alpha = 0.18f),
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = ringWidth)
+            )
+            var startAngle = -90f
+            slices.forEachIndexed { index, _ ->
+                val sweepAngle = sweepAngles[index]
+                if (sweepAngle > 0f) {
+                    drawArc(
+                        color = sliceColors[index],
+                        startAngle = startAngle,
+                        sweepAngle = sweepAngle,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = ringWidth)
+                    )
+                }
+                startAngle += sweepAngle
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = stringResource(Res.string.home_section_storage),
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor.copy(alpha = 0.8f)
+            )
+            Text(
+                text = Formatters.bytes(totalBytes),
+                style = MaterialTheme.typography.titleMedium,
+                color = contentColor
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun BackupCard(
@@ -511,10 +742,11 @@ private fun BackupCard(
     onBackUpPending: () -> Unit,
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
-    onCancel: (String) -> Unit
+    onCancel: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
@@ -769,7 +1001,11 @@ private fun rememberConnectionStatus(
 }
 
 @Composable
-private fun StorageCard(slices: List<StorageSlice>, modifier: Modifier = Modifier) {
+private fun StorageCard(
+    slices: List<StorageSlice>,
+    modifier: Modifier = Modifier,
+    showFileCount: Boolean = true
+) {
     val totalBytes = remember(slices) { slices.sumOf { it.totalBytes } }
     val totalFiles = remember(slices) { slices.sumOf { it.fileCount } }
     val isDesktop = LocalPlatformCapabilities.current.isDesktop
@@ -793,15 +1029,17 @@ private fun StorageCard(slices: List<StorageSlice>, modifier: Modifier = Modifie
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
-                text = pluralStringResource(
-                    Res.plurals.file_count,
-                    if (isDesktop) animatedTotalFiles else totalFiles,
-                    if (isDesktop) animatedTotalFiles else totalFiles
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (showFileCount) {
+                Text(
+                    text = pluralStringResource(
+                        Res.plurals.file_count,
+                        if (isDesktop) animatedTotalFiles else totalFiles,
+                        if (isDesktop) animatedTotalFiles else totalFiles
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Spacer(Modifier.height(16.dp))
             StorageBar(slices = slices, totalBytes = totalBytes)
             Spacer(Modifier.height(16.dp))
@@ -840,61 +1078,67 @@ private fun StorageBar(slices: List<StorageSlice>, totalBytes: Long) {
     }
 }
 
-private val LegendTextStyle: TextStyle
-    @Composable get() = MaterialTheme.typography.bodyLarge
-
 @Composable
-private fun StorageLegend(slices: List<StorageSlice>, totalBytes: Long) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.weight(1f)) {
-            slices.forEach { slice ->
-                Row(
-                    modifier = Modifier.padding(vertical = LEGEND_ROW_GAP),
-                    verticalAlignment = Alignment.CenterVertically
+private fun StorageLegend(
+    slices: List<StorageSlice>,
+    totalBytes: Long,
+    modifier: Modifier = Modifier,
+    labelColor: Color = MaterialTheme.colorScheme.onSurface,
+    detailColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        slices.forEachIndexed { index, slice ->
+            val percent = slice.totalBytes * 100f / totalBytes
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(LEGEND_DOT)
+                        .clip(CircleShape)
+                        .background(slice.category.chartColor())
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(LEGEND_DOT)
-                            .clip(CircleShape)
-                            .background(slice.category.chartColor())
-                    )
-                    Spacer(Modifier.width(12.dp))
                     Text(
                         text = slice.category.label(),
-                        style = LegendTextStyle,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = labelColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Text(
+                        text = Formatters.bytes(slice.totalBytes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = detailColor,
+                        maxLines = 1
+                    )
                 }
-            }
-        }
-        Spacer(Modifier.width(16.dp))
-        Column(horizontalAlignment = Alignment.End) {
-            slices.forEach { slice ->
-                val percent = slice.totalBytes * 100f / totalBytes
+                Spacer(Modifier.width(12.dp))
                 Text(
                     text = if (percent < 1f) {
                         stringResource(Res.string.home_storage_percent_min)
                     } else {
                         stringResource(Res.string.home_storage_percent, percent.roundToInt())
                     },
-                    style = LegendTextStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    modifier = Modifier.padding(vertical = LEGEND_ROW_GAP)
+                    style = MaterialTheme.typography.bodySmall,
+                    color = detailColor,
+                    maxLines = 1
                 )
             }
-        }
-        Spacer(Modifier.width(16.dp))
-        Column(horizontalAlignment = Alignment.End) {
-            slices.forEach { slice ->
-                Text(
-                    text = Formatters.bytes(slice.totalBytes),
-                    style = LegendTextStyle,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    modifier = Modifier.padding(vertical = LEGEND_ROW_GAP)
+            if (index < slices.lastIndex) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(detailColor.copy(alpha = 0.12f))
                 )
             }
         }
@@ -948,4 +1192,3 @@ private val BAR_HEIGHT = 14.dp
 private val BAR_GAP = 3.dp
 private val LEGEND_DOT = 12.dp
 private const val MIN_SLICE = 0.02f
-private val LEGEND_ROW_GAP = 6.dp

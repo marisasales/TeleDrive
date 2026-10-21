@@ -39,6 +39,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -287,9 +288,11 @@ private fun MainScaffold(
         onDestinationHandled()
     }
 
-    if (isDesktop && onboardingComplete && !currentDestination.let {
-            it?.hasRoute(Route.Onboarding::class) == true
-        }) {
+    if (
+        isDesktop && onboardingComplete &&
+        !currentDestination.let { it?.hasRoute(Route.Onboarding::class) == true } &&
+        currentDestination?.hasRoute(Route.Preview::class) != true
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -299,12 +302,14 @@ private fun MainScaffold(
                 selectedDestination = TopLevelDestination.entries.firstOrNull { destination ->
                     currentDestination?.hasRoute(destination.route::class) == true
                 },
+                trashSelected = currentDestination?.hasRoute<Route.Trash>() == true,
                 collapsed = sidebarCollapsed,
                 onToggleCollapsed = {
                     sidebarCollapsed = !sidebarCollapsed
                     platformCapabilities.saveNavigationSidebarCollapsed(sidebarCollapsed)
                 },
-                onNavigate = { navigateTopLevel(navController, it) }
+                onNavigate = { navigateTopLevel(navController, it) },
+                onOpenTrash = { navController.navigateOnce(Route.Trash) }
             )
             AppNavHost(
                 navController = navController,
@@ -392,9 +397,11 @@ private fun MainScaffold(
 @Composable
 private fun DesktopNavigationSidebar(
     selectedDestination: TopLevelDestination?,
+    trashSelected: Boolean,
     collapsed: Boolean,
     onToggleCollapsed: () -> Unit,
-    onNavigate: (TopLevelDestination) -> Unit
+    onNavigate: (TopLevelDestination) -> Unit,
+    onOpenTrash: () -> Unit
 ) {
     val sidebarWidth by animateDpAsState(
         targetValue = if (collapsed) 76.dp else 232.dp,
@@ -444,7 +451,10 @@ private fun DesktopNavigationSidebar(
                     modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
                 )
             }
-            TopLevelDestination.entries.forEach { destination ->
+            val primaryDestinations = TopLevelDestination.entries.filter {
+                it != TopLevelDestination.SETTINGS
+            }
+            primaryDestinations.forEach { destination ->
                 val selected = destination == selectedDestination
                 val label = stringResource(destination.labelRes)
                 TooltipBox(
@@ -489,11 +499,97 @@ private fun DesktopNavigationSidebar(
                 }
                 Spacer(Modifier.height(4.dp))
             }
+            val trashLabel = "Lixeira"
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                    TooltipAnchorPosition.End
+                ),
+                tooltip = { PlainTooltip { Text(trashLabel) } },
+                state = rememberTooltipState()
+            ) {
+                Surface(
+                    onClick = { if (!trashSelected) onOpenTrash() },
+                    color = if (trashSelected) MaterialTheme.colorScheme.secondaryContainer
+                    else MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(
+                            horizontal = if (collapsed) 0.dp else 12.dp,
+                            vertical = 11.dp
+                        ),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = if (collapsed) Arrangement.Center
+                        else Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.DeleteOutline,
+                            contentDescription = trashLabel.takeIf { collapsed },
+                            tint = if (trashSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (!collapsed) {
+                            Text(
+                                text = trashLabel,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (trashSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
             if (!collapsed) {
                 Spacer(Modifier.height(12.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
             }
             Spacer(Modifier.weight(1f))
+            val settings = TopLevelDestination.SETTINGS
+            val settingsSelected = settings == selectedDestination
+            val settingsLabel = stringResource(settings.labelRes)
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                    TooltipAnchorPosition.End
+                ),
+                tooltip = { PlainTooltip { Text(settingsLabel) } },
+                state = rememberTooltipState()
+            ) {
+                Surface(
+                    onClick = { if (!settingsSelected) onNavigate(settings) },
+                    color = if (settingsSelected) MaterialTheme.colorScheme.secondaryContainer
+                    else MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(
+                            horizontal = if (collapsed) 0.dp else 12.dp,
+                            vertical = 11.dp
+                        ),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = if (collapsed) Arrangement.Center
+                        else Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            if (settingsSelected) settings.selectedIcon else settings.icon,
+                            contentDescription = settingsLabel.takeIf { collapsed },
+                            tint = if (settingsSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (!collapsed) {
+                            Text(
+                                text = settingsLabel,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (settingsSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
             if (!collapsed) {
                 Text(
                     text = "TELEGRAM DRIVE",
