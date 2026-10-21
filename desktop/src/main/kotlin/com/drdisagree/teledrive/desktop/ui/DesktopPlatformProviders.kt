@@ -72,6 +72,14 @@ fun ProvideDesktopPlatformActions(content: @Composable () -> Unit) {
     val filePicker = remember {
         FilePicker { onPicked ->
             thread {
+                val windowsPaths = WindowsModernFilePicker.pickFiles(multiple = false)
+                if (windowsPaths != null) {
+                    onPicked(
+                        windowsPaths.firstOrNull()?.let { PickResult.Picked(it) }
+                            ?: PickResult.Canceled
+                    )
+                    return@thread
+                }
                 val dialog = FileDialog(null as Frame?, "", FileDialog.LOAD)
                 dialog.isVisible = true
                 val file = dialog.file
@@ -87,6 +95,11 @@ fun ProvideDesktopPlatformActions(content: @Composable () -> Unit) {
     val multiFilePicker = remember {
         MultiFilePicker { onPicked ->
             thread {
+                val windowsPaths = WindowsModernFilePicker.pickFiles(multiple = true)
+                if (windowsPaths != null) {
+                    onPicked(windowsPaths)
+                    return@thread
+                }
                 val dialog = FileDialog(null as Frame?, "", FileDialog.LOAD)
                 dialog.isMultipleMode = true
                 dialog.isVisible = true
