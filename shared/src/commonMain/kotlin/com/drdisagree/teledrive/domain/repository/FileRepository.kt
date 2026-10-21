@@ -19,6 +19,9 @@ interface FileRepository {
 
     fun observeFiles(spec: FileQuerySpec): Flow<List<DriveFile>>
 
+    /** A bounded, local-only preview sample for a folder card. */
+    fun observeFolderPreviewFiles(folderId: String, limit: Int): Flow<List<DriveFile>>
+
     suspend fun fileIdsInTree(folderId: String): List<String>
 
     /** Ids of every file matching [spec], including pages not loaded yet. */

@@ -35,7 +35,8 @@ fun FileThumbnail(
     file: DriveFile,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
-    contentDescription: String? = file.name
+    contentDescription: String? = file.name,
+    allowThumbnailGeneration: Boolean = true
 ) {
     // Text can carry one too: a note holding a link previews as that link.
     val supportsThumbnail = file.category == FileCategory.IMAGE ||
@@ -54,7 +55,7 @@ fun FileThumbnail(
 
         if (supportsThumbnail && (file.hasLocalCopy || file.hasRemoteCopy) && !failed) {
             AsyncImage(
-                model = ThumbnailModel(file.id),
+                model = ThumbnailModel(file.id, cacheOnly = !allowThumbnailGeneration),
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = contentScale,

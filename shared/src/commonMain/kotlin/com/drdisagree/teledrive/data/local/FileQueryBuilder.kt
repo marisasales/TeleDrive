@@ -29,9 +29,12 @@ object FileQueryBuilder {
 
     fun build(spec: FileQuerySpec): RoomRawQuery = query("*", spec)
 
+    fun buildLimited(spec: FileQuerySpec, limit: Int): RoomRawQuery =
+        query("*", spec, limit.coerceAtLeast(1))
+
     fun buildIds(spec: FileQuerySpec): RoomRawQuery = query("id", spec)
 
-    private fun query(projection: String, spec: FileQuerySpec): RoomRawQuery {
+    private fun query(projection: String, spec: FileQuerySpec, limit: Int? = null): RoomRawQuery {
         val where = StringBuilder("trashedAt IS NULL")
         val args = mutableListOf<Any>()
         val trees = mutableListOf<String>()
@@ -115,7 +118,7 @@ object FileQueryBuilder {
 
         val prefix = if (trees.isEmpty()) "" else "WITH RECURSIVE ${trees.joinToString(", ")} "
         val sql = prefix + "SELECT $projection FROM files WHERE $where " +
-                "ORDER BY $orderColumn $direction, id ASC"
+                "ORDER BY $orderColumn $direction, id ASC" + if (limit != null) " LIMIT ?" else ""
         return RoomRawQuery(sql) { statement ->
             args.forEachIndexed { index, value ->
                 when (value) {
@@ -125,6 +128,7 @@ object FileQueryBuilder {
                     else -> error("Unsupported query argument: $value")
                 }
             }
+            limit?.let { statement.bindLong(args.size + 1, it.toLong()) }
         }
     }
 

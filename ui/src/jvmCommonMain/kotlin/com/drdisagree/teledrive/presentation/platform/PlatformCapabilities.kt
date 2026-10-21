@@ -15,6 +15,13 @@ interface PlatformCapabilities {
     val supportsScreenCaptureBlocking: Boolean
 
     val supportsDynamicColor: Boolean
+
+    /** Enables desktop-specific navigation and visual treatment without changing Android. */
+    val isDesktop: Boolean
+
+    fun loadNavigationSidebarCollapsed(): Boolean = false
+
+    fun saveNavigationSidebarCollapsed(collapsed: Boolean) = Unit
 }
 
 val LocalPlatformCapabilities = staticCompositionLocalOf<PlatformCapabilities> {

@@ -16,7 +16,8 @@ class DesktopStoragePaths : AppStoragePaths {
             else -> System.getenv("XDG_DATA_HOME")?.let(::File)
                 ?: File(home, ".local/share")
         }
-        File(base, "TeleDrive").apply { mkdirs() }
+        // Keep beta credentials, session DB, settings, and lock files separate from stable.
+        File(base, "TeleDrive Beta").apply { mkdirs() }
     }
 
     override val filesDir: File

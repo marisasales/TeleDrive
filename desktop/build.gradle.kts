@@ -274,7 +274,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Dmg)
             appResourcesRootDir.set(layout.buildDirectory.dir("appResources"))
-            packageName = "TeleDrive"
+            packageName = "TeleDrive Beta"
             packageVersion = libs.versions.appVersion.get()
                 .split(".")
                 .let { parts -> (parts + List(3) { "0" }).take(3) }
@@ -295,10 +295,11 @@ compose.desktop {
             windows {
                 iconFile.set(project.file("icons/TeleDrive.ico"))
                 perUserInstall = true
-                menuGroup = "TeleDrive"
+                menuGroup = "TeleDrive Beta"
                 shortcut = true
                 dirChooser = true
-                upgradeUuid = "b7e35f74-33a4-43d9-98b1-84babb95f8a7"
+                // A distinct UpgradeCode lets the beta coexist with stable MSI installs.
+                upgradeUuid = "d2c9132a-00c7-4e6f-86dc-4ad79c4a21b8"
             }
 
             linux {

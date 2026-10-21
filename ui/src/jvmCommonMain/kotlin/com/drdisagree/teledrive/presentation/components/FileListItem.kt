@@ -3,6 +3,7 @@ package com.drdisagree.teledrive.presentation.components
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.drdisagree.teledrive.domain.model.DriveFile
 import com.drdisagree.teledrive.presentation.common.Formatters
+import com.drdisagree.teledrive.presentation.platform.LocalPlatformCapabilities
 import com.drdisagree.teledrive.resources.Res
 import com.drdisagree.teledrive.resources.common_content_description_available_offline
 import com.drdisagree.teledrive.resources.common_content_description_favorite
@@ -47,19 +54,27 @@ fun FileListItem(
     modifier: Modifier = Modifier,
     showFavorite: Boolean = true,
     showAvailableOffline: Boolean = true,
+    desktopColumns: Boolean = false,
     status: (@Composable () -> Unit)? = null
 ) {
     val compact = LocalCompactLayout.current
-    val background = if (selected) {
-        MaterialTheme.colorScheme.secondaryContainer
-    } else {
-        Color.Transparent
-    }
+    val desktop = LocalPlatformCapabilities.current.isDesktop
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val background by animateColorAsState(
+        targetValue = when {
+            selected -> MaterialTheme.colorScheme.secondaryContainer
+            desktop && hovered -> MaterialTheme.colorScheme.surfaceContainerHigh
+            else -> Color.Transparent
+        },
+        label = "fileRowHover"
+    )
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.large)
             .background(background)
+            .then(if (desktop) Modifier.hoverable(interactionSource) else Modifier)
             .combinedClickable(
                 onClickLabel = stringResource(
                     if (selectionMode) Res.string.common_select else Res.string.common_open
@@ -91,26 +106,59 @@ fun FileListItem(
             }
         }
         Spacer(Modifier.width(if (compact) 10.dp else 14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = file.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-            }
-            if (!compact) {
-                Text(
-                    text = stringResource(
-                        Res.string.common_file_size_and_date,
-                        Formatters.bytes(file.sizeBytes),
-                        Formatters.date(file.modifiedAt)
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        if (desktop && desktopColumns) {
+            Text(
+                text = file.name,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(2.2f)
+            )
+            Text(
+                text = file.extension.ifBlank { file.mimeType.substringAfter('/', "—") }
+                    .uppercase(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(0.8f)
+            )
+            Text(
+                text = Formatters.bytes(file.sizeBytes),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier = Modifier.width(88.dp)
+            )
+            Text(
+                text = Formatters.date(file.modifiedAt),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier = Modifier.width(112.dp)
+            )
+        } else {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = file.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                }
+                if (!compact) {
+                    Text(
+                        text = stringResource(
+                            Res.string.common_file_size_and_date,
+                            Formatters.bytes(file.sizeBytes),
+                            Formatters.date(file.modifiedAt)
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
         if (file.isFavorite && showFavorite) {

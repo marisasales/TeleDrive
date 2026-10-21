@@ -16,4 +16,6 @@ class AndroidPlatformCapabilities : PlatformCapabilities {
 
     override val supportsDynamicColor: Boolean =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+
+    override val isDesktop: Boolean = false
 }

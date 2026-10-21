@@ -44,7 +44,7 @@ class AndroidThumbnailStore(
 
     private val generationSemaphore = Semaphore(3)
 
-    override suspend fun thumbnailBytes(fileId: String): ByteArray? {
+    override suspend fun thumbnailBytes(fileId: String, generateIfMissing: Boolean): ByteArray? {
         if (!settingsRepository.preferences.first().linkPreviews && isNote(fileId)) {
             thumbnailDao.delete(fileId)
             return null
@@ -62,6 +62,7 @@ class AndroidThumbnailStore(
             }
             thumbnailDao.delete(fileId)
         }
+        if (!generateIfMissing) return null
         return generationSemaphore.withPermit { generate(fileId) }
     }
 

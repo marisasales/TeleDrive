@@ -17,12 +17,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
@@ -35,13 +37,23 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -89,9 +101,13 @@ import com.drdisagree.teledrive.presentation.navigation.Route
 import com.drdisagree.teledrive.presentation.navigation.TopLevelDestination
 import com.drdisagree.teledrive.presentation.navigation.navigateOnce
 import com.drdisagree.teledrive.presentation.platform.LocalAppVersion
+import com.drdisagree.teledrive.presentation.platform.LocalPlatformCapabilities
 import com.drdisagree.teledrive.presentation.platform.LocalUrlOpener
 import com.drdisagree.teledrive.presentation.theme.TeleDriveTheme
 import com.drdisagree.teledrive.presentation.theme.systemDarkTheme
+import com.drdisagree.teledrive.resources.Res
+import com.drdisagree.teledrive.resources.common_collapse
+import com.drdisagree.teledrive.resources.common_expand
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -156,7 +172,11 @@ fun TeleDriveApp(
         true
     }
 
-    TeleDriveTheme(darkTheme = darkTheme, dynamicColor = state.dynamicColor) {
+    TeleDriveTheme(
+        darkTheme = darkTheme,
+        dynamicColor = state.dynamicColor,
+        desktopStyle = LocalPlatformCapabilities.current.isDesktop
+    ) {
         CompositionLocalProvider(
             (LocalLocaleList as ProvidableCompositionLocal<LocaleList>) provides targetLocaleList,
             LocalCompactLayout provides state.compactLayout
@@ -204,6 +224,11 @@ private fun MainScaffold(
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
+    val platformCapabilities = LocalPlatformCapabilities.current
+    val isDesktop = platformCapabilities.isDesktop
+    var sidebarCollapsed by remember(platformCapabilities) {
+        mutableStateOf(platformCapabilities.loadNavigationSidebarCollapsed())
+    }
 
     val isTopLevel = TopLevelDestination.entries.any { destination ->
         currentDestination?.hasRoute(destination.route::class) == true
@@ -262,7 +287,32 @@ private fun MainScaffold(
         onDestinationHandled()
     }
 
-    if (useRail && isTopLevel) {
+    if (isDesktop && onboardingComplete && !currentDestination.let {
+            it?.hasRoute(Route.Onboarding::class) == true
+        }) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            DesktopNavigationSidebar(
+                selectedDestination = TopLevelDestination.entries.firstOrNull { destination ->
+                    currentDestination?.hasRoute(destination.route::class) == true
+                },
+                collapsed = sidebarCollapsed,
+                onToggleCollapsed = {
+                    sidebarCollapsed = !sidebarCollapsed
+                    platformCapabilities.saveNavigationSidebarCollapsed(sidebarCollapsed)
+                },
+                onNavigate = { navigateTopLevel(navController, it) }
+            )
+            AppNavHost(
+                navController = navController,
+                startDestination = startDestination,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    } else if (useRail && isTopLevel) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -332,6 +382,124 @@ private fun MainScaffold(
                     onSlotMeasured = { index, slot ->
                         if (navSlots[index] != slot) navSlots = navSlots + (index to slot)
                     }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DesktopNavigationSidebar(
+    selectedDestination: TopLevelDestination?,
+    collapsed: Boolean,
+    onToggleCollapsed: () -> Unit,
+    onNavigate: (TopLevelDestination) -> Unit
+) {
+    val sidebarWidth by animateDpAsState(
+        targetValue = if (collapsed) 76.dp else 232.dp,
+        animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow),
+        label = "desktopSidebarWidth"
+    )
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.width(sidebarWidth).fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier.padding(
+                horizontal = if (collapsed) 10.dp else 16.dp,
+                vertical = 16.dp
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = if (collapsed) 16.dp else 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.SpaceBetween
+            ) {
+                if (!collapsed) {
+                    Text(
+                        text = "TeleDrive",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(start = 12.dp)
+                    )
+                }
+                IconButton(onClick = onToggleCollapsed, modifier = Modifier.size(44.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Menu,
+                        contentDescription = stringResource(
+                            if (collapsed) Res.string.common_expand else Res.string.common_collapse
+                        ),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (!collapsed) {
+                Text(
+                    text = "BIBLIOTECA",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
+                )
+            }
+            TopLevelDestination.entries.forEach { destination ->
+                val selected = destination == selectedDestination
+                val label = stringResource(destination.labelRes)
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                        TooltipAnchorPosition.End
+                    ),
+                    tooltip = { PlainTooltip { Text(label) } },
+                    state = rememberTooltipState()
+                ) {
+                    Surface(
+                        onClick = { if (!selected) onNavigate(destination) },
+                        color = if (selected) MaterialTheme.colorScheme.secondaryContainer
+                        else MaterialTheme.colorScheme.surfaceContainerLow,
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(
+                                horizontal = if (collapsed) 0.dp else 12.dp,
+                                vertical = 11.dp
+                            ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = if (collapsed) Arrangement.Center
+                            else Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                if (selected) destination.selectedIcon else destination.icon,
+                                contentDescription = label.takeIf { collapsed },
+                                tint = if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (!collapsed) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+            }
+            if (!collapsed) {
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+            }
+            Spacer(Modifier.weight(1f))
+            if (!collapsed) {
+                Text(
+                    text = "TELEGRAM DRIVE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
                 )
             }
         }

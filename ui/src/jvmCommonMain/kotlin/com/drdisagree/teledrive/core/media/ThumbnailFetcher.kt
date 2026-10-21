@@ -16,7 +16,10 @@ class ThumbnailFetcher(
 ) : Fetcher {
 
     override suspend fun fetch(): FetchResult? {
-        val bytes = thumbnailStore.thumbnailBytes(model.fileId) ?: return null
+        val bytes = thumbnailStore.thumbnailBytes(
+            model.fileId,
+            generateIfMissing = !model.cacheOnly
+        ) ?: return null
         return SourceFetchResult(
             source = ImageSource(
                 source = Buffer().write(bytes),

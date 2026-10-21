@@ -4,7 +4,10 @@ import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.drdisagree.teledrive.core.telegram.TelegramProxyType
 import com.drdisagree.teledrive.data.local.database.TeleDriveDatabase
+import com.drdisagree.teledrive.data.local.entity.FileEntity
 import com.drdisagree.teledrive.data.local.entity.ProxyEntity
+import com.drdisagree.teledrive.domain.model.BackupState
+import com.drdisagree.teledrive.domain.model.FileCategory
 import com.drdisagree.teledrive.domain.model.FileQuerySpec
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -54,4 +57,44 @@ class DesktopDatabaseTest {
             file.delete()
         }
     }
+
+    @Test
+    fun `limited file query binds limit and returns deterministic sample`() = runBlocking {
+        val file = File.createTempFile("teledrive", ".db")
+        val database = openDatabase(file)
+        try {
+            listOf("c", "a", "b").forEach { database.fileDao().upsert(fileEntity(it)) }
+
+            assertEquals(
+                listOf("a", "b"),
+                database.fileDao().idList(FileQueryBuilder.buildLimited(FileQuerySpec(), 2))
+            )
+            assertEquals(
+                listOf("a"),
+                database.fileDao().idList(FileQueryBuilder.buildLimited(FileQuerySpec(), 0))
+            )
+        } finally {
+            database.close()
+            file.delete()
+        }
+    }
+
+    private fun fileEntity(id: String) = FileEntity(
+        id = id,
+        folderId = null,
+        name = "$id.txt",
+        sizeBytes = 1,
+        mimeType = "text/plain",
+        category = FileCategory.DOCUMENT,
+        localPath = null,
+        contentHash = null,
+        chatId = null,
+        messageId = null,
+        remoteFileId = null,
+        remoteUniqueId = null,
+        backupState = BackupState.BACKED_UP,
+        createdAt = 1,
+        modifiedAt = 1,
+        addedAt = 1
+    )
 }

@@ -13,19 +13,25 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
@@ -65,11 +71,17 @@ import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -93,6 +105,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -143,6 +162,7 @@ import com.drdisagree.teledrive.presentation.platform.LocalDeleteConsentLauncher
 import com.drdisagree.teledrive.presentation.platform.LocalFileRevealer
 import com.drdisagree.teledrive.presentation.platform.LocalFileSharer
 import com.drdisagree.teledrive.presentation.platform.LocalFolderPicker
+import com.drdisagree.teledrive.presentation.platform.LocalPlatformCapabilities
 import com.drdisagree.teledrive.presentation.platform.LocalMultiFilePicker
 import com.drdisagree.teledrive.presentation.platform.PickResult
 import com.drdisagree.teledrive.presentation.preview.PreviewSequence
@@ -156,6 +176,7 @@ import com.drdisagree.teledrive.resources.common_confirm_trash_count_title
 import com.drdisagree.teledrive.resources.common_create
 import com.drdisagree.teledrive.resources.common_deselect_all
 import com.drdisagree.teledrive.resources.common_download
+import com.drdisagree.teledrive.resources.common_no_subfolders
 import com.drdisagree.teledrive.resources.common_free_space
 import com.drdisagree.teledrive.resources.common_make_available_offline
 import com.drdisagree.teledrive.resources.common_move_trash
@@ -192,6 +213,11 @@ import com.drdisagree.teledrive.resources.files_share_destination_confirm
 import com.drdisagree.teledrive.resources.files_share_destination_title
 import com.drdisagree.teledrive.resources.files_show_in_file_manager
 import com.drdisagree.teledrive.resources.files_sort
+import com.drdisagree.teledrive.resources.search_section_folders
+import com.drdisagree.teledrive.resources.files_sort_date_modified
+import com.drdisagree.teledrive.resources.files_sort_name
+import com.drdisagree.teledrive.resources.files_sort_size
+import com.drdisagree.teledrive.resources.files_sort_type
 import com.drdisagree.teledrive.resources.info_details
 import com.drdisagree.teledrive.resources.note_edit_action
 import com.drdisagree.teledrive.resources.note_new
@@ -229,6 +255,7 @@ fun FilesScreen(
     val infoTarget by viewModel.infoTarget.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val allSelected by viewModel.allSelected.collectAsStateWithLifecycle()
+    val isDesktop = LocalPlatformCapabilities.current.isDesktop
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showCreateFolder by remember { mutableStateOf(false) }
@@ -290,6 +317,27 @@ fun FilesScreen(
     }
     val lifted by rememberToolbarLift(gridState)
 
+    val keyboardShortcutModifier = if (isDesktop) {
+        Modifier.onPreviewKeyEvent { event ->
+            val modalOrEditorOpen = showCreateFolder || showSortMenu || showAddMenu ||
+                    showMovePicker || showCopyPicker || showSelectionOverflow || confirmTrash ||
+                    confirmDeleteLocal || renameTarget != null || infoTarget != null
+            if (modalOrEditorOpen || event.type != KeyEventType.KeyDown || !event.isCtrlPressed) {
+                false
+            } else when {
+                event.key == Key.F && !event.isShiftPressed -> {
+                    onOpenSearch()
+                    true
+                }
+                event.key == Key.N && event.isShiftPressed -> {
+                    showCreateFolder = true
+                    true
+                }
+                else -> false
+            }
+        }
+    } else Modifier
+
     var highlightedFileId by remember(focusFileId) { mutableStateOf<String?>(null) }
     LaunchedEffect(focusFileId) {
         val target = focusFileId ?: return@LaunchedEffect
@@ -326,7 +374,7 @@ fun FilesScreen(
     val fabLift by animateDpAsState(targetValue = snackbarHeight, label = "fabLift")
 
     FileDropArea(onDropped = { references -> viewModel.importAndUpload(references) }) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().then(keyboardShortcutModifier)) {
             Scaffold(
                 snackbarHost = {},
                 topBar = {
@@ -561,17 +609,27 @@ fun FilesScreen(
                                     refreshing = refreshing,
                                     onRefresh = viewModel::refresh
                                 )
-                                IconButton(onClick = onOpenSearch) {
-                                    Icon(
-                                        Icons.Filled.Search,
-                                        contentDescription = stringResource(Res.string.files_search)
-                                    )
+                                if (isDesktop) {
+                                    ShortcutTooltip("Ctrl+F") {
+                                        IconButton(onClick = onOpenSearch) {
+                                            Icon(Icons.Filled.Search, contentDescription = stringResource(Res.string.files_search))
+                                        }
+                                    }
+                                } else {
+                                    IconButton(onClick = onOpenSearch) {
+                                        Icon(Icons.Filled.Search, contentDescription = stringResource(Res.string.files_search))
+                                    }
                                 }
-                                IconButton(onClick = { showCreateFolder = true }) {
-                                    Icon(
-                                        Icons.Filled.CreateNewFolder,
-                                        contentDescription = stringResource(Res.string.files_new_folder)
-                                    )
+                                if (isDesktop) {
+                                    ShortcutTooltip("Ctrl+Shift+N") {
+                                        IconButton(onClick = { showCreateFolder = true }) {
+                                            Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(Res.string.files_new_folder))
+                                        }
+                                    }
+                                } else {
+                                    IconButton(onClick = { showCreateFolder = true }) {
+                                        Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(Res.string.files_new_folder))
+                                    }
                                 }
                                 IconButton(onClick = { showSortMenu = true }) {
                                     Icon(
@@ -926,7 +984,6 @@ private fun CrumbLabel(
 
 private const val INLINE_CRUMBS = 3
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FilesContent(
     highlightedFileId: String?,
@@ -938,6 +995,92 @@ private fun FilesContent(
     onOpenFile: (String, PreviewSequence) -> Unit,
     viewModel: FilesViewModel
 ) {
+    val isDesktop = LocalPlatformCapabilities.current.isDesktop
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        // Reserve master-detail for genuinely wide panes with both child folders and files.
+        // Otherwise a folder-only view becomes a narrow stacked list with an empty main pane.
+        if (isDesktop && maxWidth >= 1280.dp && state.folders.isNotEmpty() && files.itemCount > 0) {
+            Row(Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .width(280.dp)
+                        .fillMaxHeight()
+                        .padding(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding())
+                ) {
+                    Text(
+                        text = stringResource(Res.string.search_section_folders),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 18.dp, end = 12.dp, top = 16.dp, bottom = 8.dp)
+                    )
+                    if (state.folders.isEmpty()) {
+                        Text(
+                            text = stringResource(Res.string.common_no_subfolders),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
+                        )
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(state.folders, key = { "master-folder-${it.id}" }) { folder ->
+                                FolderGridItemWithPreview(
+                                    folder = folder,
+                                    selected = folder.id in state.folderSelection,
+                                    onClick = {
+                                        if (state.selectionMode) viewModel.toggleFolderSelection(folder.id)
+                                        else onOpenFolder(folder.id)
+                                    },
+                                    onLongClick = { viewModel.toggleFolderSelection(folder.id) },
+                                    viewModel = viewModel,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+                FilesGridContent(
+                    highlightedFileId = highlightedFileId,
+                    gridState = gridState,
+                    state = state.copy(folders = emptyList()),
+                    files = files,
+                    padding = padding,
+                    onOpenFolder = onOpenFolder,
+                    onOpenFile = onOpenFile,
+                    viewModel = viewModel
+                )
+            }
+        } else {
+            FilesGridContent(
+                highlightedFileId = highlightedFileId,
+                gridState = gridState,
+                state = state,
+                files = files,
+                padding = padding,
+                onOpenFolder = onOpenFolder,
+                onOpenFile = onOpenFile,
+                viewModel = viewModel
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FilesGridContent(
+    highlightedFileId: String?,
+    gridState: LazyGridState,
+    state: FilesUiState,
+    files: LazyPagingItems<DriveFile>,
+    padding: PaddingValues,
+    onOpenFolder: (String) -> Unit,
+    onOpenFile: (String, PreviewSequence) -> Unit,
+    viewModel: FilesViewModel
+) {
+    val isDesktop = LocalPlatformCapabilities.current.isDesktop
     val columns = if (state.viewMode == ViewMode.GRID) state.gridSize else 1
     val dragSelect = rememberDragSelect(
         gridState = gridState,
@@ -981,16 +1124,29 @@ private fun FilesContent(
             val folder = state.folders[index]
             val folderSelected = folder.id in state.folderSelection
             if (state.viewMode == ViewMode.GRID) {
-                FolderGridItem(
-                    folder = folder,
-                    selected = folderSelected,
-                    onClick = {
-                        if (state.selectionMode) viewModel.toggleFolderSelection(folder.id)
-                        else onOpenFolder(folder.id)
-                    },
-                    onLongClick = { viewModel.toggleFolderSelection(folder.id) },
-                    modifier = Modifier.animateItem()
-                )
+                val onClick = {
+                    if (state.selectionMode) viewModel.toggleFolderSelection(folder.id)
+                    else onOpenFolder(folder.id)
+                }
+                val onLongClick = { viewModel.toggleFolderSelection(folder.id) }
+                if (isDesktop) {
+                    FolderGridItemWithPreview(
+                        folder = folder,
+                        selected = folderSelected,
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                        viewModel = viewModel,
+                        modifier = Modifier.animateItem()
+                    )
+                } else {
+                    FolderGridItem(
+                        folder = folder,
+                        selected = folderSelected,
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                        modifier = Modifier.animateItem()
+                    )
+                }
             } else {
                 FolderRow(
                     folder = folder,
@@ -1002,6 +1158,12 @@ private fun FilesContent(
                     onLongClick = { viewModel.toggleFolderSelection(folder.id) },
                     modifier = Modifier.animateItem()
                 )
+            }
+        }
+
+        if (isDesktop && state.viewMode == ViewMode.LIST && files.itemCount > 0) {
+            item(key = "desktop-file-columns-header", span = { GridItemSpan(maxLineSpan) }) {
+                DesktopFileColumnsHeader()
             }
         }
 
@@ -1036,6 +1198,7 @@ private fun FilesContent(
                     file = file,
                     selected = selected,
                     selectionMode = state.selectionMode,
+                    desktopColumns = isDesktop,
                     onClick = {
                         if (state.selectionMode) viewModel.toggleSelection(file.id)
                         else onOpenFile(
@@ -1056,6 +1219,76 @@ private fun FilesContent(
     }
 }
 
+@Composable
+private fun DesktopFileColumnsHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Spacer(Modifier.width(48.dp))
+        Spacer(Modifier.width(14.dp))
+        Text(
+            text = stringResource(Res.string.files_sort_name),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(2.2f)
+        )
+        Text(
+            text = stringResource(Res.string.files_sort_type),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.8f)
+        )
+        Text(
+            text = stringResource(Res.string.files_sort_size),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(88.dp)
+        )
+        Text(
+            text = stringResource(Res.string.files_sort_date_modified),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(112.dp)
+        )
+    }
+}
+
+@Composable
+private fun ShortcutTooltip(shortcut: String, content: @Composable () -> Unit) {
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        tooltip = { PlainTooltip { Text(shortcut) } },
+        state = rememberTooltipState(),
+        content = { content() }
+    )
+}
+
+@Composable
+private fun FolderGridItemWithPreview(
+    folder: DriveFolder,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    viewModel: FilesViewModel,
+    modifier: Modifier = Modifier
+) {
+    val previewFiles by remember(folder.id, viewModel) {
+        viewModel.folderPreviewFiles(folder.id)
+    }.collectAsStateWithLifecycle(emptyList())
+    FolderGridItem(
+        folder = folder,
+        selected = selected,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        previewFiles = previewFiles,
+        modifier = modifier
+    )
+}
 @Composable
 internal fun FolderPickerHost(
     title: String,

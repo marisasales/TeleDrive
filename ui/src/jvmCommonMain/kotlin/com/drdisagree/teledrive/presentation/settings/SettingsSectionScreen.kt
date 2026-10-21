@@ -1,9 +1,13 @@
 package com.drdisagree.teledrive.presentation.settings
 
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,6 +41,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import org.jetbrains.compose.resources.StringArrayResource
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.pluralStringResource
@@ -195,13 +202,14 @@ import com.drdisagree.teledrive.presentation.components.rememberToolbarLift
 fun SettingsSectionScreen(
     section: SettingsSectionType,
     onOpenChannels: () -> Unit,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onOpenExclusions: () -> Unit,
     onOpenProxy: () -> Unit,
     onLoggedOut: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var selectedSection by remember(section) { mutableStateOf(section) }
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmLogout by remember { mutableStateOf(false) }
     var confirmClearCache by remember { mutableStateOf(false) }
@@ -226,19 +234,24 @@ fun SettingsSectionScreen(
 
     val scrollState = rememberScrollState()
     val lifted by rememberToolbarLift(scrollState)
+    LaunchedEffect(selectedSection) {
+        scrollState.scrollTo(0)
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 colors = liftedTopAppBarColors(lifted),
-                title = { Text(stringResource(section.titleRes)) },
+                title = { Text(stringResource(selectedSection.titleRes)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.common_back)
-                        )
+                    onBack?.let { back ->
+                        IconButton(onClick = back) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(Res.string.common_back)
+                            )
+                        }
                     }
                 }
             )
@@ -248,48 +261,75 @@ fun SettingsSectionScreen(
             LoadingState(modifier = Modifier.padding(padding))
             return@Scaffold
         }
-        Column(
+        val capabilities = LocalPlatformCapabilities.current
+        val visibleSections = SettingsSectionType.entries.filterNot { type ->
+            (type == SettingsSectionType.BACKUP && !capabilities.supportsAutoBackup) ||
+                    (type == SettingsSectionType.PERMISSIONS && !capabilities.requiresPermissions)
+        }
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = padding.calculateTopPadding())
-                .verticalScroll(scrollState)
         ) {
-            Spacer(Modifier.height(8.dp))
-            when (section) {
-                SettingsSectionType.ACCOUNT -> AccountSection(
-                    onPickChannel = onOpenChannels,
-                    state = state,
-                    viewModel = viewModel,
-                    onLogout = { confirmLogout = true }
-                )
-
-                SettingsSectionType.BACKUP -> BackupSection(
-                    state = state,
-                    viewModel = viewModel,
-                    onOpenExclusions = onOpenExclusions
-                )
-
-                SettingsSectionType.STORAGE -> StorageSection(
-                    state = state,
-                    viewModel = viewModel,
-                    onClearCache = { confirmClearCache = true }
-                )
-
-                SettingsSectionType.PERMISSIONS ->
-                    PermissionsSection(viewModel.permissionChecker)
-
-                SettingsSectionType.SECURITY -> SecuritySection(state, viewModel)
-                SettingsSectionType.APPEARANCE -> AppearanceSection(state, viewModel)
-                SettingsSectionType.PLAYBACK -> PlaybackSection(state, viewModel)
-                SettingsSectionType.NOTIFICATIONS -> NotificationsSection(state, viewModel)
-                SettingsSectionType.ADVANCED -> AdvancedSection(
-                    state = state,
-                    viewModel = viewModel,
-                    onOpenProxy = onOpenProxy
-                )
-                SettingsSectionType.ABOUT -> AboutSection(state, viewModel)
+            val useDesktopMasterDetail = capabilities.isDesktop && maxWidth >= 760.dp
+            if (useDesktopMasterDetail) {
+                Row(Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .width(256.dp)
+                            .fillMaxHeight()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 12.dp, vertical = 12.dp)
+                    ) {
+                        visibleSections.forEach { item ->
+                            DesktopSettingsSectionItem(
+                                section = item,
+                                selected = item == selectedSection,
+                                onClick = { selectedSection = item }
+                            )
+                        }
+                    }
+                    VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .verticalScroll(scrollState)
+                    ) {
+                        Spacer(Modifier.height(8.dp))
+                        SettingsSectionContent(
+                            section = selectedSection,
+                            state = state,
+                            viewModel = viewModel,
+                            onOpenChannels = onOpenChannels,
+                            onOpenExclusions = onOpenExclusions,
+                            onOpenProxy = onOpenProxy,
+                            onLogout = { confirmLogout = true },
+                            onClearCache = { confirmClearCache = true }
+                        )
+                        Spacer(Modifier.height(24.dp + padding.calculateBottomPadding()))
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                ) {
+                    Spacer(Modifier.height(8.dp))
+                    SettingsSectionContent(
+                        section = selectedSection,
+                        state = state,
+                        viewModel = viewModel,
+                        onOpenChannels = onOpenChannels,
+                        onOpenExclusions = onOpenExclusions,
+                        onOpenProxy = onOpenProxy,
+                        onLogout = { confirmLogout = true },
+                        onClearCache = { confirmClearCache = true }
+                    )
+                    Spacer(Modifier.height(24.dp + padding.calculateBottomPadding()))
+                }
             }
-            Spacer(Modifier.height(24.dp + padding.calculateBottomPadding()))
         }
     }
 
@@ -317,6 +357,84 @@ fun SettingsSectionScreen(
             },
             onDismiss = { confirmClearCache = false }
         )
+    }
+}
+
+@Composable
+private fun DesktopSettingsSectionItem(
+    section: SettingsSectionType,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(
+                if (selected) MaterialTheme.colorScheme.secondaryContainer
+                else MaterialTheme.colorScheme.surface
+            )
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = section.icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
+                else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = stringResource(section.titleRes),
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
+                else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun SettingsSectionContent(
+    section: SettingsSectionType,
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
+    onOpenChannels: () -> Unit,
+    onOpenExclusions: () -> Unit,
+    onOpenProxy: () -> Unit,
+    onLogout: () -> Unit,
+    onClearCache: () -> Unit
+) {
+    when (section) {
+        SettingsSectionType.ACCOUNT -> AccountSection(
+            onPickChannel = onOpenChannels,
+            state = state,
+            viewModel = viewModel,
+            onLogout = onLogout
+        )
+        SettingsSectionType.BACKUP -> BackupSection(
+            state = state,
+            viewModel = viewModel,
+            onOpenExclusions = onOpenExclusions
+        )
+        SettingsSectionType.STORAGE -> StorageSection(
+            state = state,
+            viewModel = viewModel,
+            onClearCache = onClearCache
+        )
+        SettingsSectionType.PERMISSIONS -> PermissionsSection(viewModel.permissionChecker)
+        SettingsSectionType.SECURITY -> SecuritySection(state, viewModel)
+        SettingsSectionType.APPEARANCE -> AppearanceSection(state, viewModel)
+        SettingsSectionType.PLAYBACK -> PlaybackSection(state, viewModel)
+        SettingsSectionType.NOTIFICATIONS -> NotificationsSection(state, viewModel)
+        SettingsSectionType.ADVANCED -> AdvancedSection(
+            state = state,
+            viewModel = viewModel,
+            onOpenProxy = onOpenProxy
+        )
+        SettingsSectionType.ABOUT -> AboutSection(state, viewModel)
     }
 }
 

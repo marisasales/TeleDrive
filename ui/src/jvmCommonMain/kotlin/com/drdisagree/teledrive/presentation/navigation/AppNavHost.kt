@@ -2,7 +2,10 @@ package com.drdisagree.teledrive.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -16,6 +19,7 @@ import com.drdisagree.teledrive.presentation.files.FilesScreen
 import com.drdisagree.teledrive.presentation.gallery.GalleryScreen
 import com.drdisagree.teledrive.presentation.home.HomeScreen
 import com.drdisagree.teledrive.presentation.platform.LocalPlatformScreens
+import com.drdisagree.teledrive.presentation.platform.LocalPlatformCapabilities
 import com.drdisagree.teledrive.presentation.navigation.NavigationTransitions.isPeerSwitch
 import com.drdisagree.teledrive.presentation.navigation.NavigationTransitions.movesForward
 import com.drdisagree.teledrive.presentation.note.NoteEditorScreen
@@ -187,12 +191,29 @@ fun AppNavHost(
         }
         composable<Route.Settings> {
             UnderBottomBar {
-                SettingsScreen(
-                    onBack = null,
-                    onOpenSection = { section ->
-                        navController.navigateOnce(Route.SettingsSection(section.name))
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    if (LocalPlatformCapabilities.current.isDesktop && maxWidth >= 760.dp) {
+                        SettingsSectionScreen(
+                            section = SettingsSectionType.ACCOUNT,
+                            onOpenChannels = { navController.navigateOnce(Route.Channels) },
+                            onBack = null,
+                            onOpenExclusions = { navController.navigateOnce(Route.Exclusions) },
+                            onOpenProxy = { navController.navigateOnce(Route.Proxy) },
+                            onLoggedOut = {
+                                navController.navigateOnce(Route.Onboarding) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            }
+                        )
+                    } else {
+                        SettingsScreen(
+                            onBack = null,
+                            onOpenSection = { section ->
+                                navController.navigateOnce(Route.SettingsSection(section.name))
+                            }
+                        )
                     }
-                )
+                }
             }
         }
         composable<Route.SettingsSection> { entry ->

@@ -1,6 +1,11 @@
 package com.drdisagree.teledrive.presentation.home
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -767,6 +772,12 @@ private fun rememberConnectionStatus(
 private fun StorageCard(slices: List<StorageSlice>, modifier: Modifier = Modifier) {
     val totalBytes = remember(slices) { slices.sumOf { it.totalBytes } }
     val totalFiles = remember(slices) { slices.sumOf { it.fileCount } }
+    val isDesktop = LocalPlatformCapabilities.current.isDesktop
+    val animatedTotalFiles by animateIntAsState(
+        targetValue = totalFiles,
+        animationSpec = if (isDesktop) tween(420, easing = FastOutSlowInEasing) else snap(),
+        label = "storage-file-count"
+    )
     if (totalBytes <= 0L) return
 
     Card(
@@ -783,7 +794,11 @@ private fun StorageCard(slices: List<StorageSlice>, modifier: Modifier = Modifie
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = pluralStringResource(Res.plurals.file_count, totalFiles, totalFiles),
+                text = pluralStringResource(
+                    Res.plurals.file_count,
+                    if (isDesktop) animatedTotalFiles else totalFiles,
+                    if (isDesktop) animatedTotalFiles else totalFiles
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -798,6 +813,7 @@ private fun StorageCard(slices: List<StorageSlice>, modifier: Modifier = Modifie
 /** Every slice keeps a sliver, so nothing vanishes entirely. */
 @Composable
 private fun StorageBar(slices: List<StorageSlice>, totalBytes: Long) {
+    val isDesktop = LocalPlatformCapabilities.current.isDesktop
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -805,7 +821,14 @@ private fun StorageBar(slices: List<StorageSlice>, totalBytes: Long) {
         horizontalArrangement = Arrangement.spacedBy(BAR_GAP)
     ) {
         slices.forEach { slice ->
-            val fraction = (slice.totalBytes.toFloat() / totalBytes).coerceAtLeast(MIN_SLICE)
+            val targetFraction = (slice.totalBytes.toDouble() / totalBytes.toDouble())
+                .toFloat()
+                .coerceAtLeast(MIN_SLICE)
+            val fraction by animateFloatAsState(
+                targetValue = targetFraction,
+                animationSpec = if (isDesktop) tween(500, easing = FastOutSlowInEasing) else snap(),
+                label = "storage-${slice.category}-bar"
+            )
             Box(
                 modifier = Modifier
                     .weight(fraction)

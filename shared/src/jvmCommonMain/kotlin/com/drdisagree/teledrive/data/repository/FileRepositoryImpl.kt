@@ -105,6 +105,16 @@ class FileRepositoryImpl(
                 .map { list -> list.map { it.toDomain() } }
         }
 
+    override fun observeFolderPreviewFiles(folderId: String, limit: Int): Flow<List<DriveFile>> =
+        activeChannel.observe().flatMapLatest { chatId ->
+            fileDao.observeList(
+                FileQueryBuilder.buildLimited(
+                    FileQuerySpec(folderId = folderId, filterByFolder = true, chatId = chatId),
+                    limit
+                )
+            ).map { list -> list.map { it.toDomain() } }
+        }
+
     override suspend fun fileIdsInTree(folderId: String): List<String> {
         val ids = mutableListOf<String>()
         var frontier = listOf(folderId)

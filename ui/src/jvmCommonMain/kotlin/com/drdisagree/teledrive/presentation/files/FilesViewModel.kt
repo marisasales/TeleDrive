@@ -99,6 +99,8 @@ class FilesViewModel(
 
     private val folderId: String? = savedStateHandle.toRoute<Route.Files>().folderId
 
+    fun folderPreviewFiles(id: String) = fileRepository.observeFolderPreviewFiles(id, limit = 4)
+
     val listPosition = ListPosition(savedStateHandle)
 
     private val selection = MutableStateFlow<Set<String>>(emptySet())
