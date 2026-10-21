@@ -524,6 +524,7 @@
 
     <!-- Trash -->
     <string name="trash">Корзина</string>
+    <string name="home_trash_summary">Элементы: %1$d · %2$s</string>
     <string name="trash_total_size">Общий размер: %1$s</string>
     <string name="trash_delete_permanently">Удалить навсегда?</string>
     <string name="trash_delete_selected_message">%1$d элементов, включая содержимое выбранных папок, будут безвозвратно удалены из устройства и из Telegram.</string>

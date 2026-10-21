@@ -160,6 +160,7 @@ import com.drdisagree.teledrive.resources.home_storage_percent_min
 import com.drdisagree.teledrive.resources.home_transfer_history
 import com.drdisagree.teledrive.resources.home_transfer_history_subtitle
 import com.drdisagree.teledrive.resources.home_waiting_count
+import com.drdisagree.teledrive.resources.home_trash_summary
 import com.drdisagree.teledrive.resources.nav_files
 import com.drdisagree.teledrive.resources.trash
 import kotlin.math.roundToInt
@@ -179,9 +180,11 @@ fun HomeScreen(
     onOpenCollection: (CollectionType) -> Unit,
     onOpenBackupSettings: () -> Unit,
     onOpenFiles: () -> Unit,
+    onOpenTrash: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val trashSummary by viewModel.trashSummary.collectAsStateWithLifecycle()
     var lastConnectionStatus by remember { mutableStateOf<ConnectionStatus?>(null) }
     val scanning by viewModel.scanning.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -402,7 +405,11 @@ fun HomeScreen(
                     activeTransferCount = state.activeTransferCount,
                     offlineBytes = state.offlineBytes,
                     onOpenCollection = onOpenCollection,
-                    onOpenTransfers = onOpenTransfers
+                    onOpenTransfers = onOpenTransfers,
+                    showTrash = !capabilities.isDesktop,
+                    trashItemCount = trashSummary.itemCount,
+                    trashTotalSizeBytes = trashSummary.totalSizeBytes,
+                    onOpenTrash = onOpenTrash
                 )
             }
         }
@@ -418,6 +425,10 @@ private fun CollectionLinks(
     offlineBytes: Long,
     onOpenCollection: (CollectionType) -> Unit,
     onOpenTransfers: () -> Unit,
+    showTrash: Boolean,
+    trashItemCount: Int,
+    trashTotalSizeBytes: Long,
+    onOpenTrash: () -> Unit,
     showTransferHistory: Boolean = true
 ) {
     GroupedList(horizontalPadding = 0.dp) {
@@ -456,6 +467,20 @@ private fun CollectionLinks(
                         stringResource(Res.string.home_transfer_history_subtitle)
                     },
                     onClick = onOpenTransfers
+                )
+            }
+        }
+        if (showTrash) {
+            add {
+                CollectionRow(
+                    icon = Icons.Filled.Delete,
+                    title = stringResource(Res.string.trash),
+                    subtitle = stringResource(
+                        Res.string.home_trash_summary,
+                        trashItemCount,
+                        Formatters.bytes(trashTotalSizeBytes)
+                    ),
+                    onClick = onOpenTrash
                 )
             }
         }

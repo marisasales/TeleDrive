@@ -491,6 +491,7 @@
 
     <!-- Trash -->
     <string name="trash">回收站</string>
+    <string name="home_trash_summary">项目：%1$d · %2$s</string>
     <string name="trash_total_size">总大小：%1$s</string>
     <string name="trash_delete_permanently">永久删除？</string>
     <string name="trash_delete_selected_message">%1$d 项（包括所选文件夹内的全部内容）将从本设备和 Telegram 中永久删除。</string>

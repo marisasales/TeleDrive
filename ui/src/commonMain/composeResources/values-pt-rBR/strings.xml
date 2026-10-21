@@ -502,6 +502,7 @@
 
     <!-- Trash -->
     <string name="trash">Lixeira</string>
+    <string name="home_trash_summary">Itens: %1$d · %2$s</string>
     <string name="trash_total_size">Tamanho total: %1$s</string>
     <string name="trash_delete_permanently">Excluir permanentemente?</string>
     <string name="trash_delete_selected_message">%1$d itens, incluindo tudo dentro de qualquer pasta selecionada, serão excluídos permanentemente deste dispositivo e do Telegram.</string>

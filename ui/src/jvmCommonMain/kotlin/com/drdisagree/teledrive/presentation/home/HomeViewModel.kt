@@ -20,6 +20,7 @@ import com.drdisagree.teledrive.domain.repository.FileRepository
 import com.drdisagree.teledrive.domain.repository.SettingsRepository
 import com.drdisagree.teledrive.domain.repository.SyncRepository
 import com.drdisagree.teledrive.domain.repository.TelegramAuthRepository
+import com.drdisagree.teledrive.domain.repository.TrashRepository
 import com.drdisagree.teledrive.domain.repository.TransferRepository
 import com.drdisagree.teledrive.presentation.common.UiText
 import com.drdisagree.teledrive.presentation.common.toUiText
@@ -62,7 +63,8 @@ class HomeViewModel(
     private val fileDao: FileDao,
     private val activeChannel: ActiveChannel,
     private val channelRepository: ChannelRepository,
-    private val powerMonitor: PowerMonitor
+    private val powerMonitor: PowerMonitor,
+    private val trashRepository: TrashRepository
 ) : ViewModel() {
 
     private val missingPermissions = MutableStateFlow(permissionChecker.missingCritical())
@@ -71,6 +73,17 @@ class HomeViewModel(
 
     val scanning: StateFlow<Boolean> = _scanning.asStateFlow()
     val messages: SharedFlow<UiText> = _messages.asSharedFlow()
+
+    val trashSummary: StateFlow<HomeTrashSummary> = combine(
+        trashRepository.observeTrash().map { it.size },
+        trashRepository.observeTrashSize()
+    ) { itemCount, totalSizeBytes ->
+        HomeTrashSummary(itemCount, totalSizeBytes)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        HomeTrashSummary()
+    )
 
     private val activeDrive: Flow<DriveChannel?> = activeChannel.observe()
         .flatMapLatest { chatId ->
