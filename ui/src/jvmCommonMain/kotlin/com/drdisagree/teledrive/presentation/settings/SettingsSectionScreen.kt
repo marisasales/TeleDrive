@@ -54,6 +54,9 @@ import com.drdisagree.teledrive.domain.model.AppLanguage
 import com.drdisagree.teledrive.resources.settings_delete_after_upload
 import com.drdisagree.teledrive.resources.settings_delete_after_upload_summary
 import com.drdisagree.teledrive.resources.Res
+import com.drdisagree.teledrive.resources.settings_desktop_click_mode
+import com.drdisagree.teledrive.resources.settings_desktop_click_open
+import com.drdisagree.teledrive.resources.settings_desktop_click_select
 import com.drdisagree.teledrive.resources.language_english
 import com.drdisagree.teledrive.resources.language_labels
 import com.drdisagree.teledrive.resources.language_chinese
@@ -1056,6 +1059,7 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
     val capabilities = LocalPlatformCapabilities.current
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showDesktopClickDialog by remember { mutableStateOf(false) }
 
     if (showThemeDialog) {
         ChoiceDialog(
@@ -1080,6 +1084,22 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
                 viewModel.update { it.copy(language = choice) }
             },
             onDismiss = { showLanguageDialog = false }
+        )
+    }
+
+    if (showDesktopClickDialog) {
+        ChoiceDialog(
+            title = stringResource(Res.string.settings_desktop_click_mode),
+            options = listOf(
+                false to stringResource(Res.string.settings_desktop_click_open),
+                true to stringResource(Res.string.settings_desktop_click_select)
+            ),
+            selected = prefs.desktopClickToSelect,
+            onSelect = { choice ->
+                showDesktopClickDialog = false
+                viewModel.update { it.copy(desktopClickToSelect = choice) }
+            },
+            onDismiss = { showDesktopClickDialog = false }
         )
     }
 
@@ -1133,6 +1153,16 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
                 value = prefs.gridSize,
                 range = 2..6,
                 onChange = { value -> viewModel.update { it.copy(gridSize = value) } }
+            )
+        }
+        add(visible = capabilities.isDesktop) {
+            SettingsClickRow(
+                title = stringResource(Res.string.settings_desktop_click_mode),
+                subtitle = stringResource(
+                    if (prefs.desktopClickToSelect) Res.string.settings_desktop_click_select
+                    else Res.string.settings_desktop_click_open
+                ),
+                onClick = { showDesktopClickDialog = true }
             )
         }
         add {

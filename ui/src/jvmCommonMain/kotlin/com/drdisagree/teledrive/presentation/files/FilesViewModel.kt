@@ -102,8 +102,6 @@ class FilesViewModel(
 
     private val folderId: String? = savedStateHandle.toRoute<Route.Files>().folderId
 
-    fun folderPreviewFiles(id: String) = fileRepository.observeFolderPreviewFiles(id, limit = 4)
-
     val listPosition = ListPosition(savedStateHandle)
 
     private val selection = MutableStateFlow<Set<String>>(emptySet())
@@ -233,7 +231,9 @@ class FilesViewModel(
             sortDirection = prefs.sortDirection,
             showHidden = prefs.showHiddenFiles,
             loaded = true,
-            capabilities = capabilities
+            capabilities = capabilities,
+            folderColors = prefs.folderColors,
+            desktopClickToSelect = prefs.desktopClickToSelect
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FilesUiState())
 
@@ -765,6 +765,12 @@ class FilesViewModel(
     fun dismissFolderInfo() = _folderInfoTarget.update { null }
 
     fun dismissInfo() = _infoTarget.update { null }
+
+    fun setFolderColor(folderId: String, colorKey: String?) = updatePrefs { prefs ->
+        val colors = prefs.folderColors.toMutableMap()
+        if (colorKey.isNullOrBlank()) colors.remove(folderId) else colors[folderId] = colorKey
+        prefs.copy(folderColors = colors)
+    }
 
     private fun updatePrefs(transform: (UserPreferences) -> UserPreferences) {
         viewModelScope.launch { settingsRepository.update(transform) }

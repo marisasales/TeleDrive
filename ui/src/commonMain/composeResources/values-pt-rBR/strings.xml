@@ -687,6 +687,17 @@
     <string name="settings_gallery_grid_columns">Colunas da grade na galeria</string>
     <string name="settings_gallery_grid_view">Visualização em grade na galeria</string>
     <string name="settings_grid_columns">Colunas da grade nos arquivos</string>
+    <string name="settings_desktop_click_mode">Comportamento de clique no desktop</string>
+    <string name="settings_desktop_click_open">Um clique abre; caixas de seleção sempre visíveis</string>
+    <string name="settings_desktop_click_select">Um clique seleciona; dois cliques abrem</string>
+    <string name="folder_color_title">Cor da pasta</string>
+    <string name="folder_color_default">Padrão</string>
+    <string name="folder_color_blue">Azul</string>
+    <string name="folder_color_violet">Violeta</string>
+    <string name="folder_color_teal">Verde-azulado</string>
+    <string name="folder_color_amber">Âmbar</string>
+    <string name="folder_color_rose">Rosa</string>
+    <string name="folder_color_slate">Cinza-azulado</string>
     <string name="settings_grid_view">Visualização em grade nos arquivos</string>
     <string name="settings_hidden_shortcut">Atalho para Ocultos</string>
     <string name="settings_recent_files">Arquivos recentes</string>

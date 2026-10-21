@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,12 +23,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.drdisagree.teledrive.domain.model.DriveFolder
 import com.drdisagree.teledrive.resources.Res
 import com.drdisagree.teledrive.resources.common_content_description_available_offline
 import com.drdisagree.teledrive.resources.common_content_description_favorite
+import com.drdisagree.teledrive.resources.common_open
 import com.drdisagree.teledrive.resources.common_select
 import org.jetbrains.compose.resources.stringResource
 
@@ -39,9 +43,16 @@ fun FolderRow(
     selected: Boolean = false,
     showFavorite: Boolean = true,
     showAvailableOffline: Boolean = true,
-    onLongClick: () -> Unit = {}
+    onLongClick: () -> Unit = {},
+    clickToSelect: Boolean = false,
+    onDoubleClick: () -> Unit = onClick,
+    showSelectionControl: Boolean = false,
+    folderColor: Color? = null,
+    folderColorKey: String? = null,
+    onFolderColorSelected: (String?) -> Unit = {}
 ) {
     val compact = LocalCompactLayout.current
+    val selectionLabel = stringResource(Res.string.common_select) + ": " + folder.name
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -51,24 +62,38 @@ fun FolderRow(
                 else Color.Transparent
             )
             .combinedClickable(
+                onClickLabel = stringResource(
+                    if (clickToSelect) Res.string.common_select else Res.string.common_open
+                ),
                 onLongClickLabel = stringResource(Res.string.common_select),
-                onClick = onClick,
+                onClick = if (clickToSelect) onLongClick else onClick,
+                onDoubleClick = if (clickToSelect) onDoubleClick else null,
                 onLongClick = onLongClick
             )
             .padding(horizontal = 12.dp, vertical = if (compact) 4.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (showSelectionControl) {
+            Checkbox(
+                checked = selected,
+                onCheckedChange = { onLongClick() },
+                modifier = Modifier.semantics { contentDescription = selectionLabel }
+            )
+        }
         Box(
             modifier = Modifier
                 .size(if (compact) 38.dp else 48.dp)
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                .background(
+                    folderColor?.copy(alpha = 0.18f)
+                        ?: MaterialTheme.colorScheme.surfaceContainerHighest
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.Folder,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = folderColor ?: MaterialTheme.colorScheme.primary
             )
         }
         Spacer(Modifier.width(if (compact) 10.dp else 14.dp))
@@ -104,6 +129,12 @@ fun FolderRow(
                 ),
                 modifier = Modifier.size(14.dp),
                 tint = MaterialTheme.colorScheme.secondary
+            )
+        }
+        if (showSelectionControl) {
+            FolderColorMenu(
+                selectedColorKey = folderColorKey,
+                onColorSelected = onFolderColorSelected
             )
         }
     }

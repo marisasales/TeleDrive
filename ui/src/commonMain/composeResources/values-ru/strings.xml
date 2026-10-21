@@ -709,6 +709,17 @@
     <string name="settings_gallery_grid_columns">Колонок в сетке галереи</string>
     <string name="settings_gallery_grid_view">Вид сеткой в галерее</string>
     <string name="settings_grid_columns">Колонок в сетке файлов</string>
+    <string name="settings_desktop_click_mode">Поведение щелчка на компьютере</string>
+    <string name="settings_desktop_click_open">Один щелчок открывает; флажки всегда видны</string>
+    <string name="settings_desktop_click_select">Один щелчок выбирает; двойной открывает</string>
+    <string name="folder_color_title">Цвет папки</string>
+    <string name="folder_color_default">По умолчанию</string>
+    <string name="folder_color_blue">Синий</string>
+    <string name="folder_color_violet">Фиолетовый</string>
+    <string name="folder_color_teal">Бирюзовый</string>
+    <string name="folder_color_amber">Янтарный</string>
+    <string name="folder_color_rose">Розовый</string>
+    <string name="folder_color_slate">Серо-синий</string>
     <string name="settings_grid_view">Вид сеткой в файлах</string>
     <string name="settings_hidden_shortcut">Ярлык скрытого</string>
     <string name="settings_recent_files">Недавние файлы</string>

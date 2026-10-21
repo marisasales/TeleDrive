@@ -20,7 +20,9 @@ data class FilesUiState(
     val sortDirection: SortDirection = SortDirection.ASCENDING,
     val showHidden: Boolean = false,
     val loaded: Boolean = false,
-    val capabilities: SelectionCapabilities = SelectionCapabilities()
+    val capabilities: SelectionCapabilities = SelectionCapabilities(),
+    val folderColors: Map<String, String> = emptyMap(),
+    val desktopClickToSelect: Boolean = false
 ) {
     val selectionMode: Boolean get() = selection.isNotEmpty() || folderSelection.isNotEmpty()
     val selectionCount: Int get() = selection.size + folderSelection.size

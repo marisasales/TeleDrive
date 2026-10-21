@@ -64,5 +64,7 @@ data class UserPreferences(
     val skippedUpdateVersion: String = "",
 
     val proxyEnabled: Boolean = false,
-    val activeProxyId: String = ""
+    val activeProxyId: String = "",
+    val folderColors: Map<String, String> = emptyMap(),
+    val desktopClickToSelect: Boolean = false
 )

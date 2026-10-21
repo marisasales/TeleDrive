@@ -687,6 +687,17 @@
     <string name="settings_gallery_grid_columns">Gallery grid columns</string>
     <string name="settings_gallery_grid_view">Grid view in gallery</string>
     <string name="settings_grid_columns">Files grid columns</string>
+    <string name="settings_desktop_click_mode">Desktop click behavior</string>
+    <string name="settings_desktop_click_open">Single-click opens; selection boxes stay visible</string>
+    <string name="settings_desktop_click_select">Single-click selects; double-click opens</string>
+    <string name="folder_color_title">Folder color</string>
+    <string name="folder_color_default">Default</string>
+    <string name="folder_color_blue">Blue</string>
+    <string name="folder_color_violet">Violet</string>
+    <string name="folder_color_teal">Teal</string>
+    <string name="folder_color_amber">Amber</string>
+    <string name="folder_color_rose">Rose</string>
+    <string name="folder_color_slate">Slate</string>
     <string name="settings_grid_view">Grid view in files</string>
     <string name="settings_hidden_shortcut">Hidden shortcut</string>
     <string name="settings_recent_files">Recent files</string>

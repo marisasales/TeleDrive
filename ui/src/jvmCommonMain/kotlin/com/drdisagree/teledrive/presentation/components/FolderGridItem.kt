@@ -4,23 +4,21 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,15 +26,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.drdisagree.teledrive.domain.model.DriveFolder
-import com.drdisagree.teledrive.domain.model.DriveFile
 import com.drdisagree.teledrive.presentation.platform.LocalPlatformCapabilities
 import com.drdisagree.teledrive.resources.Res
 import com.drdisagree.teledrive.resources.common_content_description_available_offline
 import com.drdisagree.teledrive.resources.common_content_description_favorite
+import com.drdisagree.teledrive.resources.common_open
 import com.drdisagree.teledrive.resources.common_select
 import org.jetbrains.compose.resources.stringResource
 
@@ -47,10 +47,15 @@ fun FolderGridItem(
     selected: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    previewFiles: List<DriveFile> = emptyList(),
+    clickToSelect: Boolean = false,
+    onDoubleClick: () -> Unit = onClick,
+    folderColor: Color? = null,
+    folderColorKey: String? = null,
+    onFolderColorSelected: (String?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isDesktop = LocalPlatformCapabilities.current.isDesktop
+    val selectionLabel = stringResource(Res.string.common_select) + ": " + folder.name
     Column(
         modifier = modifier
             .clip(MaterialTheme.shapes.large)
@@ -66,13 +71,68 @@ fun FolderGridItem(
                 else MaterialTheme.colorScheme.surfaceContainerLow
             )
             .combinedClickable(
+                onClickLabel = stringResource(
+                    if (isDesktop && clickToSelect) Res.string.common_select else Res.string.common_open
+                ),
                 onLongClickLabel = stringResource(Res.string.common_select),
-                onClick = onClick,
+                onClick = if (isDesktop && clickToSelect) onLongClick else onClick,
+                onDoubleClick = if (isDesktop && clickToSelect) onDoubleClick else null,
                 onLongClick = onLongClick
-            )
+        )
     ) {
         if (isDesktop) {
-            DesktopFolderPreview(files = previewFiles)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (!clickToSelect || selected) {
+                    Checkbox(
+                        checked = selected,
+                        onCheckedChange = { onLongClick() },
+                        modifier = Modifier.semantics {
+                            contentDescription = selectionLabel
+                        }
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Filled.Folder,
+                    contentDescription = null,
+                    modifier = Modifier.size(30.dp),
+                    tint = folderColor ?: MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = folder.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (folder.isFavorite) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = stringResource(Res.string.common_content_description_favorite),
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+                if (folder.isAvailableOffline) {
+                    Icon(
+                        imageVector = Icons.Filled.OfflinePin,
+                        contentDescription = stringResource(
+                            Res.string.common_content_description_available_offline
+                        ),
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                }
+                FolderColorMenu(
+                    selectedColorKey = folderColorKey,
+                    onColorSelected = onFolderColorSelected
+                )
+            }
         } else {
             Box(
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f),
@@ -82,15 +142,16 @@ fun FolderGridItem(
                     imageVector = Icons.Filled.Folder,
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = folderColor ?: MaterialTheme.colorScheme.primary
                 )
             }
         }
-        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+        if (!isDesktop) Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = folder.name,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = if (isDesktop) MaterialTheme.typography.titleSmall
+                    else MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -118,57 +179,12 @@ fun FolderGridItem(
             }
             Text(
                 text = folder.contentsLabel(),
-                style = MaterialTheme.typography.bodySmall,
+                style = if (isDesktop) MaterialTheme.typography.bodyMedium
+                else MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
     }
-}
-
-@Composable
-private fun DesktopFolderPreview(files: List<DriveFile>) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(10.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .aspectRatio(1.55f),
-        contentAlignment = Alignment.Center
-    ) {
-        if (files.isEmpty()) {
-            Icon(
-                imageVector = Icons.Filled.Folder,
-                contentDescription = null,
-                modifier = Modifier.size(36.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
-            )
-        } else {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                files.chunked(2).forEach { rowFiles ->
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        rowFiles.forEach { file ->
-                            FileThumbnail(
-                                file = file,
-                                modifier = Modifier.weight(1f).fillMaxSize().clip(RoundedCornerShape(7.dp)),
-                                contentScale = ContentScale.Crop,
-                                contentDescription = null,
-                                allowThumbnailGeneration = false
-                            )
-                        }
-                        if (rowFiles.size == 1) Spacer(Modifier.weight(1f))
-                    }
-                }
-            }
-        }
-    }
-    Spacer(Modifier.height(2.dp))
 }

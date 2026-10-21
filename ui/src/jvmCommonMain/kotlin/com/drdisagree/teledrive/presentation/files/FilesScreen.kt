@@ -64,10 +64,15 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.FolderOff
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -75,6 +80,7 @@ import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
@@ -144,6 +150,7 @@ import com.drdisagree.teledrive.presentation.components.SortMenu
 import com.drdisagree.teledrive.presentation.components.FileInfoSheet
 import com.drdisagree.teledrive.presentation.components.FileListItem
 import com.drdisagree.teledrive.presentation.components.FolderGridItem
+import com.drdisagree.teledrive.presentation.components.FolderColorPalette
 import com.drdisagree.teledrive.presentation.components.FolderInfoSheet
 import com.drdisagree.teledrive.presentation.components.FolderPickerDialog
 import com.drdisagree.teledrive.presentation.components.FolderRow
@@ -215,6 +222,7 @@ import com.drdisagree.teledrive.resources.files_share_destination_title
 import com.drdisagree.teledrive.resources.files_show_in_file_manager
 import com.drdisagree.teledrive.resources.files_sort
 import com.drdisagree.teledrive.resources.search_section_folders
+import com.drdisagree.teledrive.resources.search_section_files
 import com.drdisagree.teledrive.resources.files_sort_date_modified
 import com.drdisagree.teledrive.resources.files_sort_name
 import com.drdisagree.teledrive.resources.files_sort_size
@@ -431,6 +439,12 @@ fun FilesScreen(
                                         contentDescription = stringResource(Res.string.files_move)
                                     )
                                 }
+                                IconButton(onClick = { confirmTrash = true }) {
+                                    Icon(
+                                        Icons.Filled.DeleteOutline,
+                                        contentDescription = stringResource(Res.string.common_move_trash)
+                                    )
+                                }
                                 Box {
                                     IconButton(onClick = { showSelectionOverflow = true }) {
                                         Icon(
@@ -581,12 +595,6 @@ fun FilesScreen(
                                                 ) { viewModel.showInfoForSelection() }
                                             )
                                         }
-                                        add(
-                                            MenuAction(
-                                                label = stringResource(Res.string.common_move_trash),
-                                                icon = Icons.Filled.DeleteOutline
-                                            ) { confirmTrash = true }
-                                        )
                                     }
 
                                     ActionMenu(
@@ -950,7 +958,12 @@ fun FilesScreen(
 
     val folderInfoTarget by viewModel.folderInfoTarget.collectAsStateWithLifecycle()
     folderInfoTarget?.let { folder ->
-        FolderInfoSheet(folder = folder, onDismiss = viewModel::dismissFolderInfo)
+        FolderInfoSheet(
+            folder = folder,
+            colorKey = state.folderColors[folder.id],
+            onColorSelected = { colorKey -> viewModel.setFolderColor(folder.id, colorKey) },
+            onDismiss = viewModel::dismissFolderInfo
+        )
     }
 
     infoTarget?.let { file ->
@@ -1091,7 +1104,7 @@ private fun FilesContent(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(state.folders, key = { "master-folder-${it.id}" }) { folder ->
-                                FolderGridItemWithPreview(
+                                FolderGridItem(
                                     folder = folder,
                                     selected = folder.id in state.folderSelection,
                                     onClick = {
@@ -1099,7 +1112,13 @@ private fun FilesContent(
                                         else onOpenFolder(folder.id)
                                     },
                                     onLongClick = { viewModel.toggleFolderSelection(folder.id) },
-                                    viewModel = viewModel,
+                                    folderColor = FolderColorPalette.colorForKey(
+                                        state.folderColors[folder.id]
+                                    ),
+                                    folderColorKey = state.folderColors[folder.id],
+                                    onFolderColorSelected = { colorKey ->
+                                        viewModel.setFolderColor(folder.id, colorKey)
+                                    },
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
@@ -1147,6 +1166,11 @@ private fun FilesGridContent(
 ) {
     val isDesktop = LocalPlatformCapabilities.current.isDesktop
     val columns = if (state.viewMode == ViewMode.GRID) state.gridSize else 1
+    val gridCells = if (isDesktop && state.viewMode == ViewMode.GRID) {
+        GridCells.Adaptive(minSize = desktopFolderTileMinWidth(state.gridSize))
+    } else {
+        GridCells.Fixed(columns)
+    }
     val dragSelect = rememberDragSelect(
         gridState = gridState,
         onStart = viewModel::startRangeSelection,
@@ -1169,7 +1193,7 @@ private fun FilesGridContent(
     )
     LazyVerticalGrid(
         state = gridState,
-        columns = GridCells.Fixed(columns),
+        columns = gridCells,
         modifier = Modifier
             .fillMaxSize()
             .pinchZoom(onZoomIn = viewModel::zoomIn, onZoomOut = viewModel::zoomOut)
@@ -1178,6 +1202,20 @@ private fun FilesGridContent(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        val showGridSections = isDesktop &&
+                state.viewMode == ViewMode.GRID &&
+                state.folders.isNotEmpty() &&
+                files.itemCount > 0
+
+        if (showGridSections) {
+            item(key = "grid-folders-section", span = { GridItemSpan(maxLineSpan) }) {
+                FilesGridSectionHeading(
+                    title = stringResource(Res.string.search_section_folders),
+                    count = state.folders.size
+                )
+            }
+        }
+
         items(
             count = state.folders.size,
             key = { "folder-${state.folders[it].id}" },
@@ -1190,17 +1228,25 @@ private fun FilesGridContent(
             val folderSelected = folder.id in state.folderSelection
             if (state.viewMode == ViewMode.GRID) {
                 val onClick = {
-                    if (state.selectionMode) viewModel.toggleFolderSelection(folder.id)
+                    if (!isDesktop && state.selectionMode) viewModel.toggleFolderSelection(folder.id)
                     else onOpenFolder(folder.id)
                 }
                 val onLongClick = { viewModel.toggleFolderSelection(folder.id) }
                 if (isDesktop) {
-                    FolderGridItemWithPreview(
+                    FolderGridItem(
                         folder = folder,
                         selected = folderSelected,
                         onClick = onClick,
                         onLongClick = onLongClick,
-                        viewModel = viewModel,
+                        clickToSelect = state.desktopClickToSelect,
+                        onDoubleClick = { onOpenFolder(folder.id) },
+                        folderColor = FolderColorPalette.colorForKey(
+                            state.folderColors[folder.id]
+                        ),
+                        folderColorKey = state.folderColors[folder.id],
+                        onFolderColorSelected = { colorKey ->
+                            viewModel.setFolderColor(folder.id, colorKey)
+                        },
                         modifier = Modifier.animateItem()
                     )
                 } else {
@@ -1209,6 +1255,15 @@ private fun FilesGridContent(
                         selected = folderSelected,
                         onClick = onClick,
                         onLongClick = onLongClick,
+                        clickToSelect = isDesktop && state.desktopClickToSelect,
+                        onDoubleClick = { onOpenFolder(folder.id) },
+                        folderColor = FolderColorPalette.colorForKey(
+                            state.folderColors[folder.id]
+                        ),
+                        folderColorKey = state.folderColors[folder.id],
+                        onFolderColorSelected = { colorKey ->
+                            viewModel.setFolderColor(folder.id, colorKey)
+                        },
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -1216,12 +1271,34 @@ private fun FilesGridContent(
                 FolderRow(
                     folder = folder,
                     selected = folderSelected,
+                    showSelectionControl = isDesktop && (!state.desktopClickToSelect || folderSelected),
+                    clickToSelect = isDesktop && state.desktopClickToSelect,
+                    onDoubleClick = { onOpenFolder(folder.id) },
+                    folderColor = FolderColorPalette.colorForKey(
+                        state.folderColors[folder.id]
+                    ),
+                    folderColorKey = state.folderColors[folder.id],
+                    onFolderColorSelected = { colorKey ->
+                        viewModel.setFolderColor(folder.id, colorKey)
+                    },
                     onClick = {
-                        if (state.selectionMode) viewModel.toggleFolderSelection(folder.id)
+                        if (!isDesktop && state.selectionMode) viewModel.toggleFolderSelection(folder.id)
                         else onOpenFolder(folder.id)
                     },
                     onLongClick = { viewModel.toggleFolderSelection(folder.id) },
                     modifier = Modifier.animateItem()
+                )
+            }
+        }
+
+        if (showGridSections) {
+            item(key = "grid-files-divider", span = { GridItemSpan(maxLineSpan) }) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+            item(key = "grid-files-section", span = { GridItemSpan(maxLineSpan) }) {
+                FilesGridSectionHeading(
+                    title = stringResource(Res.string.search_section_files),
+                    count = files.itemCount
                 )
             }
         }
@@ -1239,21 +1316,26 @@ private fun FilesGridContent(
             val file = files[index] ?: return@items
             val selected = file.id in state.selection
             val highlighted = file.id == highlightedFileId
+            val openFile = {
+                onOpenFile(
+                    file.id,
+                    PreviewSequence(
+                        folderId = state.folderId,
+                        filterByFolder = true,
+                        sortField = state.sortField,
+                        sortDirection = state.sortDirection
+                    )
+                )
+            }
             if (state.viewMode == ViewMode.GRID) {
                 FileGridItem(
                     file = file,
                     selected = selected,
+                    clickToSelect = isDesktop && state.desktopClickToSelect,
+                    onDoubleClick = openFile,
                     onClick = {
-                        if (state.selectionMode) viewModel.toggleSelection(file.id)
-                        else onOpenFile(
-                            file.id,
-                            PreviewSequence(
-                                folderId = state.folderId,
-                                filterByFolder = true,
-                                sortField = state.sortField,
-                                sortDirection = state.sortDirection
-                            )
-                        )
+                        if (!isDesktop && state.selectionMode) viewModel.toggleSelection(file.id)
+                        else openFile()
                     },
                     onLongClick = { viewModel.toggleSelection(file.id) },
                     modifier = Modifier.animateItem().focusHighlight(highlighted)
@@ -1264,23 +1346,39 @@ private fun FilesGridContent(
                     selected = selected,
                     selectionMode = state.selectionMode,
                     desktopColumns = isDesktop,
+                    clickToSelect = isDesktop && state.desktopClickToSelect,
+                    onDoubleClick = openFile,
                     onClick = {
-                        if (state.selectionMode) viewModel.toggleSelection(file.id)
-                        else onOpenFile(
-                            file.id,
-                            PreviewSequence(
-                                folderId = state.folderId,
-                                filterByFolder = true,
-                                sortField = state.sortField,
-                                sortDirection = state.sortDirection
-                            )
-                        )
+                        if (!isDesktop && state.selectionMode) viewModel.toggleSelection(file.id)
+                        else openFile()
                     },
                     onLongClick = { viewModel.toggleSelection(file.id) },
                     modifier = Modifier.animateItem().focusHighlight(highlighted)
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun FilesGridSectionHeading(title: String, count: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = count.toString(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -1333,27 +1431,8 @@ private fun ShortcutTooltip(shortcut: String, content: @Composable () -> Unit) {
     )
 }
 
-@Composable
-private fun FolderGridItemWithPreview(
-    folder: DriveFolder,
-    selected: Boolean,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
-    viewModel: FilesViewModel,
-    modifier: Modifier = Modifier
-) {
-    val previewFiles by remember(folder.id, viewModel) {
-        viewModel.folderPreviewFiles(folder.id)
-    }.collectAsStateWithLifecycle(emptyList())
-    FolderGridItem(
-        folder = folder,
-        selected = selected,
-        onClick = onClick,
-        onLongClick = onLongClick,
-        previewFiles = previewFiles,
-        modifier = modifier
-    )
-}
+private fun desktopFolderTileMinWidth(gridSize: Int) =
+    (390 - (gridSize - 2) * 40).coerceIn(210, 390).dp
 @Composable
 internal fun FolderPickerHost(
     title: String,

@@ -676,6 +676,17 @@
     <string name="settings_gallery_grid_columns">图库网格列数</string>
     <string name="settings_gallery_grid_view">图库使用网格视图</string>
     <string name="settings_grid_columns">文件网格列数</string>
+    <string name="settings_desktop_click_mode">桌面点击行为</string>
+    <string name="settings_desktop_click_open">单击打开，始终显示复选框</string>
+    <string name="settings_desktop_click_select">单击选择，双击打开</string>
+    <string name="folder_color_title">文件夹颜色</string>
+    <string name="folder_color_default">默认</string>
+    <string name="folder_color_blue">蓝色</string>
+    <string name="folder_color_violet">紫色</string>
+    <string name="folder_color_teal">青绿色</string>
+    <string name="folder_color_amber">琥珀色</string>
+    <string name="folder_color_rose">玫红色</string>
+    <string name="folder_color_slate">灰蓝色</string>
     <string name="settings_grid_view">文件使用网格视图</string>
     <string name="settings_hidden_shortcut">已隐藏快捷入口</string>
     <string name="settings_recent_files">最近文件</string>

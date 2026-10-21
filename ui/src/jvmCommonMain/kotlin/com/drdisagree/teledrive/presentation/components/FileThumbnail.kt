@@ -65,7 +65,10 @@ fun FileThumbnail(
             Icon(
                 imageVector = iconFor(file.category),
                 contentDescription = contentDescription,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(
+                    if (allowThumbnailGeneration) 28.dp
+                    else (shortestSide * 0.45f).coerceIn(28.dp, 72.dp)
+                ),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

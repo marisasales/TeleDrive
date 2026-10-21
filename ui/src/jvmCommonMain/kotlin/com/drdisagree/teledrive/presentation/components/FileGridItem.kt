@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,15 +25,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.drdisagree.teledrive.domain.model.BackupState
 import com.drdisagree.teledrive.domain.model.DriveFile
 import com.drdisagree.teledrive.presentation.common.Formatters
+import com.drdisagree.teledrive.presentation.platform.LocalPlatformCapabilities
 import com.drdisagree.teledrive.resources.Res
 import com.drdisagree.teledrive.resources.common_content_description_available_offline
 import com.drdisagree.teledrive.resources.common_content_description_favorite
 import com.drdisagree.teledrive.resources.common_content_description_selected
+import com.drdisagree.teledrive.resources.common_open
 import com.drdisagree.teledrive.resources.common_select
 import org.jetbrains.compose.resources.stringResource
 
@@ -44,9 +49,13 @@ fun FileGridItem(
     showFavorite: Boolean = true,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    clickToSelect: Boolean = false,
+    onDoubleClick: () -> Unit = onClick,
     modifier: Modifier = Modifier,
     compact: Boolean = false
 ) {
+    val isDesktop = LocalPlatformCapabilities.current.isDesktop
+    val selectionLabel = "${stringResource(Res.string.common_select)}: ${file.name}"
     Column(
         modifier = modifier
             .clip(MaterialTheme.shapes.large)
@@ -55,8 +64,12 @@ fun FileGridItem(
                 else MaterialTheme.colorScheme.surfaceContainerLow
             )
             .combinedClickable(
+                onClickLabel = stringResource(
+                    if (isDesktop && clickToSelect) Res.string.common_select else Res.string.common_open
+                ),
                 onLongClickLabel = stringResource(Res.string.common_select),
-                onClick = onClick,
+                onClick = if (isDesktop && clickToSelect) onLongClick else onClick,
+                onDoubleClick = if (isDesktop && clickToSelect) onDoubleClick else null,
                 onLongClick = onLongClick
             )
     ) {
@@ -68,7 +81,15 @@ fun FileGridItem(
                     .fillMaxWidth()
                     .aspectRatio(1f)
             )
-            if (selected) {
+            if (isDesktop && (!clickToSelect || selected)) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = { onLongClick() },
+                    modifier = Modifier.align(Alignment.TopEnd).semantics {
+                        contentDescription = selectionLabel
+                    }
+                )
+            } else if (selected) {
                 Icon(
                     imageVector = Icons.Filled.CheckCircle,
                     contentDescription = stringResource(Res.string.common_content_description_selected),

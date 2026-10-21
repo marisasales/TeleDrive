@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.drdisagree.teledrive.domain.model.DriveFile
@@ -51,6 +54,8 @@ fun FileListItem(
     selectionMode: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    clickToSelect: Boolean = false,
+    onDoubleClick: () -> Unit = onClick,
     modifier: Modifier = Modifier,
     showFavorite: Boolean = true,
     showAvailableOffline: Boolean = true,
@@ -59,6 +64,7 @@ fun FileListItem(
 ) {
     val compact = LocalCompactLayout.current
     val desktop = LocalPlatformCapabilities.current.isDesktop
+    val selectionLabel = "${stringResource(Res.string.common_select)}: ${file.name}"
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val background by animateColorAsState(
@@ -77,15 +83,27 @@ fun FileListItem(
             .then(if (desktop) Modifier.hoverable(interactionSource) else Modifier)
             .combinedClickable(
                 onClickLabel = stringResource(
-                    if (selectionMode) Res.string.common_select else Res.string.common_open
+                    if (selectionMode || (desktop && clickToSelect)) {
+                        Res.string.common_select
+                    } else {
+                        Res.string.common_open
+                    }
                 ),
                 onLongClickLabel = stringResource(Res.string.common_select),
-                onClick = onClick,
+                onClick = if (desktop && clickToSelect) onLongClick else onClick,
+                onDoubleClick = if (desktop && clickToSelect) onDoubleClick else null,
                 onLongClick = onLongClick
             )
             .padding(horizontal = 12.dp, vertical = if (compact) 4.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (desktop && (!clickToSelect || selected)) {
+            Checkbox(
+                checked = selected,
+                onCheckedChange = { onLongClick() },
+                modifier = Modifier.semantics { contentDescription = selectionLabel }
+            )
+        }
         Box {
             FileThumbnail(
                 file = file,
@@ -94,7 +112,7 @@ fun FileListItem(
                     .size(if (compact) 38.dp else 48.dp)
                     .clip(MaterialTheme.shapes.medium)
             )
-            if (selected) {
+            if (!desktop && selected) {
                 Icon(
                     imageVector = Icons.Filled.CheckCircle,
                     contentDescription = stringResource(Res.string.common_content_description_selected),

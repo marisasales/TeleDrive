@@ -104,6 +104,9 @@ class SettingsRepositoryImpl(
             language = AppLanguage.fromCode(this[PreferenceKeys.LANGUAGE]),
             dynamicColor = this[PreferenceKeys.DYNAMIC_COLOR] ?: defaults.dynamicColor,
             viewMode = enumOrDefault(this[PreferenceKeys.VIEW_MODE], defaults.viewMode),
+            desktopClickToSelect = this[PreferenceKeys.DESKTOP_CLICK_TO_SELECT]
+                ?: defaults.desktopClickToSelect,
+            folderColors = decodeFolderColors(this[PreferenceKeys.FOLDER_COLORS]),
             galleryViewMode = enumOrDefault(
                 this[PreferenceKeys.GALLERY_VIEW_MODE],
                 enumOrDefault(this[PreferenceKeys.VIEW_MODE], defaults.galleryViewMode)
@@ -196,6 +199,12 @@ class SettingsRepositoryImpl(
         this[PreferenceKeys.LANGUAGE] = prefs.language.code
         this[PreferenceKeys.DYNAMIC_COLOR] = prefs.dynamicColor
         this[PreferenceKeys.VIEW_MODE] = prefs.viewMode.name
+        this[PreferenceKeys.DESKTOP_CLICK_TO_SELECT] = prefs.desktopClickToSelect
+        if (prefs.folderColors.isEmpty()) {
+            remove(PreferenceKeys.FOLDER_COLORS)
+        } else {
+            this[PreferenceKeys.FOLDER_COLORS] = encodeFolderColors(prefs.folderColors)
+        }
         this[PreferenceKeys.GALLERY_VIEW_MODE] = prefs.galleryViewMode.name
         this[PreferenceKeys.GALLERY_GRID_SIZE] = prefs.galleryGridSize
         this[PreferenceKeys.GRID_SIZE] = prefs.gridSize
@@ -230,4 +239,19 @@ class SettingsRepositoryImpl(
 
     private inline fun <reified T : Enum<T>> enumOrDefault(name: String?, default: T): T =
         name?.let { runCatching { enumValueOf<T>(it) }.getOrNull() } ?: default
+
+    private fun decodeFolderColors(serialized: String?): Map<String, String> =
+        serialized.orEmpty().split(';').mapNotNull { entry ->
+            val separator = entry.indexOf(':')
+            if (separator <= 0) return@mapNotNull null
+            runCatching {
+                Base64.decode(entry.substring(0, separator)).decodeToString() to
+                    entry.substring(separator + 1)
+            }.getOrNull()
+        }.toMap()
+
+    private fun encodeFolderColors(folderColors: Map<String, String>): String =
+        folderColors.entries.joinToString(";") { (folderId, colorKey) ->
+            "${Base64.encode(folderId.encodeToByteArray())}:$colorKey"
+        }
 }
