@@ -2,6 +2,8 @@ package com.drdisagree.teledrive.presentation.components
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -27,6 +29,17 @@ fun BottomBarSnackbarHost(
         hostState = hostState,
         modifier = Modifier
             .padding(bottom = inset)
-            .then(modifier)
+            .then(modifier),
+        snackbar = { data ->
+            val colors = MaterialTheme.colorScheme
+            Snackbar(
+                snackbarData = data,
+                containerColor = colors.surfaceContainerHigh,
+                contentColor = colors.onSurface,
+                actionColor = colors.primary,
+                actionContentColor = colors.onPrimary,
+                dismissActionContentColor = colors.onSurfaceVariant
+            )
+        }
     )
 }
