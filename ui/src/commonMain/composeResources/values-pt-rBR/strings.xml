@@ -437,6 +437,7 @@
     <string name="preview_preparing">Preparando %1$s</string>
     <string name="preview_previous">Arquivo anterior</string>
     <string name="preview_progress_bytes">%1$s de %2$s</string>
+    <string name="player_buffering_percent">Preparando vídeo · %1$d%%</string>
     <string name="preview_read_failed">Não foi possível ler o arquivo</string>
     <string name="preview_remove_favorites">Remover dos favoritos</string>
     <string name="preview_removed_favorites">Removido dos favoritos</string>

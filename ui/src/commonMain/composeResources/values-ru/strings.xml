@@ -459,6 +459,7 @@
     <string name="preview_preparing">Подготовка %1$s</string>
     <string name="preview_previous">Предыдущий файл</string>
     <string name="preview_progress_bytes">%1$s из %2$s</string>
+    <string name="player_buffering_percent">Буферизация видео · %1$d%%</string>
     <string name="preview_read_failed">Не удалось прочитать файл</string>
     <string name="preview_remove_favorites">Убрать из избранного</string>
     <string name="preview_removed_favorites">Убрано из избранного</string>

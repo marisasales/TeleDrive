@@ -426,6 +426,7 @@
     <string name="preview_preparing">正在准备 %1$s</string>
     <string name="preview_previous">上一个文件</string>
     <string name="preview_progress_bytes">%1$s / %2$s</string>
+    <string name="player_buffering_percent">视频缓冲中 · %1$d%%</string>
     <string name="preview_read_failed">无法读取文件</string>
     <string name="preview_remove_favorites">从收藏中移除</string>
     <string name="preview_removed_favorites">已从收藏中移除</string>

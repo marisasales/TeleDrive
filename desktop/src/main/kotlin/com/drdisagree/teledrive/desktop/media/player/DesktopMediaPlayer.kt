@@ -30,7 +30,9 @@ import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.SubtitlesOff
 import androidx.compose.material.icons.filled.ZoomOutMap
-import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -46,7 +48,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import com.drdisagree.teledrive.desktop.ui.LocalFullscreenController
 import com.drdisagree.teledrive.presentation.common.Formatters
 import com.drdisagree.teledrive.resources.Res
+import com.drdisagree.teledrive.resources.player_buffering_percent
 import com.drdisagree.teledrive.resources.player_audio_track
 import com.drdisagree.teledrive.resources.player_exit_full_screen
 import com.drdisagree.teledrive.resources.player_full_screen
@@ -108,6 +113,7 @@ fun DesktopMediaPlayer(
     var playing by remember { mutableStateOf(false) }
     var finished by remember { mutableStateOf(false) }
     var buffering by remember { mutableStateOf(true) }
+    var bufferPercent by remember { mutableFloatStateOf(0f) }
     var timeMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(0L) }
     var muted by remember { mutableStateOf(false) }
@@ -126,6 +132,7 @@ fun DesktopMediaPlayer(
                     playing = true
                     finished = false
                     buffering = false
+                    bufferPercent = 100f
                     trackTick++
                 }
 
@@ -144,10 +151,12 @@ fun DesktopMediaPlayer(
                 override fun finished(mediaPlayer: MediaPlayer) {
                     playing = false
                     finished = true
+                    buffering = false
                 }
 
                 override fun buffering(mediaPlayer: MediaPlayer, newCache: Float) {
-                    buffering = newCache < 100f
+                    bufferPercent = newCache.coerceIn(0f, 100f)
+                    buffering = bufferPercent < 100f
                 }
 
                 override fun timeChanged(mediaPlayer: MediaPlayer, newTime: Long) {
@@ -162,6 +171,7 @@ fun DesktopMediaPlayer(
                     playing = false
                     finished = true
                     buffering = false
+                    bufferPercent = 0f
                 }
             })
         }
@@ -174,6 +184,12 @@ fun DesktopMediaPlayer(
 
     val fullscreenController = LocalFullscreenController.current
     DisposableEffect(mrl) {
+        playing = false
+        finished = false
+        buffering = true
+        bufferPercent = 0f
+        timeMs = 0L
+        durationMs = 0L
         player.media().play(mrl)
         onDispose {
             runCatching {
@@ -274,9 +290,33 @@ fun DesktopMediaPlayer(
             }
         }
 
-        if (buffering && !finished) {
-            CircularWavyProgressIndicator(modifier = Modifier.size(56.dp))
-        }
+                if (buffering && !finished) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
+                        shape = MaterialTheme.shapes.large,
+                        tonalElevation = 4.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                progress = { bufferPercent / 100f },
+                                modifier = Modifier.size(56.dp),
+                                gapSize = 3.dp
+                            )
+                            Text(
+                                text = stringResource(
+                                    Res.string.player_buffering_percent,
+                                    bufferPercent.toInt()
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
 
         AnimatedVisibility(
             visible = controlsVisible || isAudio,
