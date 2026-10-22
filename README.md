@@ -12,6 +12,7 @@ Back up and browse your files using a private Telegram channel as storage.
 [![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-111111?style=for-the-badge&logo=apple&logoColor=white)](#requirements)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Compose%20Multiplatform-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://www.jetbrains.com/compose-multiplatform/)
+[![Version](https://img.shields.io/badge/version-1.6.0-6750A4?style=for-the-badge)](#features)
 [![Release](https://img.shields.io/github/v/release/Mahmud0808/TeleDrive?style=for-the-badge&logo=github&logoColor=white&color=1F883D)](https://github.com/Mahmud0808/TeleDrive/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Mahmud0808/TeleDrive/total?style=for-the-badge&logo=github&logoColor=white&color=D97706)](https://github.com/Mahmud0808/TeleDrive/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-6750A4?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
@@ -48,6 +49,11 @@ transfers and the entire UI layer, and all of them browse the same drive.
 - **No file size limit**: a 20 GB video is one file in the app, whatever Telegram caps a message at
 - **Encryption**: optional AES-256-GCM for file bodies, names, captions and the folder tree
 - **File management**: folders, favorites, hidden and archived items, trash and bulk actions
+- **Telegram import**: bring existing document messages into your drive by forwarding them from channels, groups or Saved Messages
+- **Mobile file browsing**: Android grid separates folders and files, with folders first; select items with a long press
+- **Trash on Home**: Android Home shows the Trash with item count and total size; desktop keeps it in the sidebar
+- **Sync status**: Home shows pending files and folder changes and lets you start syncing; publish retries are scheduled on Android and desktop
+- **Appearance**: Android launch screen follows the saved theme and dynamic color preference
 - **Streaming**: video and audio play straight from Telegram with seeking, encrypted files included
 - **Previews**: images, PDFs, text and ZIP contents open inline
 - **Multiple drives**: separate channels for personal, work or photos on one account
@@ -259,6 +265,8 @@ TDLib and tdlight.
 | Layer | What is protected |
 | --- | --- |
 | On device | Room and TDLib databases sealed with a random, platform-wrapped key (Android Keystore, Windows DPAPI, or a local file key on Linux). Thumbnails and caches AES-GCM encrypted by default. |
+| Proxy credentials | Proxy usernames, passwords and MTProto secrets are encrypted before being stored in the local database. |
+| Desktop streaming | The loopback media-stream URL includes a random, per-stream access token, checked on every request and invalidated when the stream changes or stops. |
 | In Telegram | With encryption on, the channel holds only sealed bytes, random file names, encrypted captions and an encrypted folder tree. |
 | Key custody | Content keys are random, wrapped by the platform master key, and never leave the device unwrapped. |
 | Recovery | The content key is backed up to your channel, sealed with your passphrase (PBKDF2, 310k iterations). Restoring it on a new device unlocks everything. |
