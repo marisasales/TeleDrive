@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="android/src/main/res/mipmap-xxxhdpi/ic_launcher.webp" width="120" alt="TeleDrive icon">
+<img src="website/assets/icon-192.png" width="120" alt="TeleDrive icon">
 
 # TeleDrive
 
