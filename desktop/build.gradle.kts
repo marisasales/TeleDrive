@@ -266,6 +266,8 @@ val debVersion = libs.versions.appVersion.get()
 val debMaintainerValue = providers.gradleProperty("debMaintainer")
     .orElse("mhofficial2020@gmail.com")
 
+val ciBuild = providers.gradleProperty("ciBuild").isPresent
+
 compose.desktop {
     application {
         mainClass = "com.drdisagree.teledrive.desktop.MainKt"
@@ -274,7 +276,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Dmg)
             appResourcesRootDir.set(layout.buildDirectory.dir("appResources"))
-            packageName = "TeleDrive Beta"
+            packageName = if (ciBuild) "TeleDrive CI" else "TeleDrive Beta"
             packageVersion = libs.versions.appVersion.get()
                 .split(".")
                 .let { parts -> (parts + List(3) { "0" }).take(3) }
@@ -298,8 +300,12 @@ compose.desktop {
                 menuGroup = "TeleDrive Beta"
                 shortcut = true
                 dirChooser = true
-                // A distinct UpgradeCode lets the beta coexist with stable MSI installs.
-                upgradeUuid = "d2c9132a-00c7-4e6f-86dc-4ad79c4a21b8"
+                upgradeUuid = if (ciBuild) {
+                    "a24fac52-b5a7-4568-ab3e-4fb00b68c1e3"
+                } else {
+                    // Keep the beta MSI separate from the stable and CI packages.
+                    "d2c9132a-00c7-4e6f-86dc-4ad79c4a21b8"
+                }
             }
 
             linux {
