@@ -63,6 +63,9 @@ import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.FolderOff
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -143,6 +146,7 @@ import com.drdisagree.teledrive.presentation.common.resolve
 import com.drdisagree.teledrive.presentation.components.ActionMenu
 import com.drdisagree.teledrive.presentation.components.BlockingProgressDialog
 import com.drdisagree.teledrive.presentation.components.BottomBarSnackbarHost
+import com.drdisagree.teledrive.presentation.components.CollectionShortcuts
 import com.drdisagree.teledrive.presentation.components.ConfirmDialog
 import com.drdisagree.teledrive.presentation.components.EmptyState
 import com.drdisagree.teledrive.presentation.components.FileGridItem
@@ -159,9 +163,12 @@ import com.drdisagree.teledrive.presentation.components.MenuAction
 import com.drdisagree.teledrive.presentation.components.RefreshAction
 import com.drdisagree.teledrive.presentation.components.RefreshableContent
 import com.drdisagree.teledrive.presentation.components.RenameDialog
+import com.drdisagree.teledrive.presentation.components.keyboardCollection
+import com.drdisagree.teledrive.presentation.components.keyboardCollectionItem
 import com.drdisagree.teledrive.presentation.components.liftedTopAppBarColors
 import com.drdisagree.teledrive.presentation.components.pinchZoom
 import com.drdisagree.teledrive.presentation.components.rememberDragSelect
+import com.drdisagree.teledrive.presentation.components.rememberKeyboardCollection
 import com.drdisagree.teledrive.presentation.components.rememberToolbarLift
 import com.drdisagree.teledrive.presentation.navigation.FabBottomBarInset
 import com.drdisagree.teledrive.presentation.navigation.LocalBottomBarInset
@@ -179,6 +186,7 @@ import com.drdisagree.teledrive.resources.common_actions
 import com.drdisagree.teledrive.resources.common_add
 import com.drdisagree.teledrive.resources.common_add_favorites
 import com.drdisagree.teledrive.resources.common_back
+import com.drdisagree.teledrive.resources.common_cancel
 import com.drdisagree.teledrive.resources.common_clear_selection
 import com.drdisagree.teledrive.resources.common_confirm_trash_count_title
 import com.drdisagree.teledrive.resources.common_create
@@ -207,6 +215,12 @@ import com.drdisagree.teledrive.resources.files_copy_here
 import com.drdisagree.teledrive.resources.files_copy_to
 import com.drdisagree.teledrive.resources.files_delete_local
 import com.drdisagree.teledrive.resources.files_delete_local_copies
+import com.drdisagree.teledrive.resources.files_folder_exists_message
+import com.drdisagree.teledrive.resources.files_folder_exists_title
+import com.drdisagree.teledrive.resources.files_folder_keep_both
+import com.drdisagree.teledrive.resources.files_folder_merge
+import com.drdisagree.teledrive.resources.files_folders_exist_message
+import com.drdisagree.teledrive.resources.files_folders_exist_title
 import com.drdisagree.teledrive.resources.files_hide
 import com.drdisagree.teledrive.resources.files_move
 import com.drdisagree.teledrive.resources.files_move_here
@@ -784,6 +798,8 @@ fun FilesScreen(
                                 ),
                                 onOpenFolder = onOpenFolder,
                                 onOpenFile = onOpenFile,
+                                onRequestTrash = { confirmTrash = true },
+                                onBack = onBack,
                                 viewModel = viewModel
                             )
                         }
@@ -803,6 +819,53 @@ fun FilesScreen(
                 )
             }
         }
+    }
+
+    val folderConflict by viewModel.folderConflict.collectAsStateWithLifecycle()
+    folderConflict?.let { conflict ->
+        val single = conflict.names.singleOrNull()
+        AlertDialog(
+            onDismissRequest = viewModel::cancelFolderImport,
+            title = {
+                Text(
+                    if (single != null) {
+                        stringResource(Res.string.files_folder_exists_title, single)
+                    } else {
+                        stringResource(Res.string.files_folders_exist_title)
+                    }
+                )
+            },
+            text = {
+                Text(
+                    if (single != null) {
+                        stringResource(
+                            Res.string.files_folder_exists_message,
+                            conflict.renamed.getValue(single)
+                        )
+                    } else {
+                        stringResource(Res.string.files_folders_exist_message)
+                    }
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = viewModel::mergeIntoExistingFolders,
+                    shapes = ButtonDefaults.shapes()
+                ) { Text(stringResource(Res.string.files_folder_merge)) }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(
+                        onClick = viewModel::cancelFolderImport,
+                        shapes = ButtonDefaults.shapes()
+                    ) { Text(stringResource(Res.string.common_cancel)) }
+                    TextButton(
+                        onClick = viewModel::keepBothFolders,
+                        shapes = ButtonDefaults.shapes()
+                    ) { Text(stringResource(Res.string.files_folder_keep_both)) }
+                }
+            }
+        )
     }
 
     if (showMovePicker || showCopyPicker || showTelegramImportDestination) {
@@ -1071,6 +1134,8 @@ private fun FilesContent(
     padding: PaddingValues,
     onOpenFolder: (String) -> Unit,
     onOpenFile: (String, PreviewSequence) -> Unit,
+    onRequestTrash: () -> Unit,
+    onBack: (() -> Unit)?,
     viewModel: FilesViewModel
 ) {
     val isDesktop = LocalPlatformCapabilities.current.isDesktop
@@ -1134,6 +1199,8 @@ private fun FilesContent(
                     padding = padding,
                     onOpenFolder = onOpenFolder,
                     onOpenFile = onOpenFile,
+                    onRequestTrash = onRequestTrash,
+                    onBack = onBack,
                     viewModel = viewModel
                 )
             }
@@ -1146,6 +1213,8 @@ private fun FilesContent(
                 padding = padding,
                 onOpenFolder = onOpenFolder,
                 onOpenFile = onOpenFile,
+                onRequestTrash = onRequestTrash,
+                onBack = onBack,
                 viewModel = viewModel
             )
         }
@@ -1162,6 +1231,8 @@ private fun FilesGridContent(
     padding: PaddingValues,
     onOpenFolder: (String) -> Unit,
     onOpenFile: (String, PreviewSequence) -> Unit,
+    onRequestTrash: () -> Unit,
+    onBack: (() -> Unit)?,
     viewModel: FilesViewModel
 ) {
     val isDesktop = LocalPlatformCapabilities.current.isDesktop
@@ -1171,6 +1242,38 @@ private fun FilesGridContent(
     } else {
         GridCells.Fixed(columns)
     }
+    val keyboard = rememberKeyboardCollection(gridState, columns)
+    val itemCount = state.folders.size + files.itemCount
+    val toggleAt: (Int) -> Unit = { index ->
+        if (index < state.folders.size) {
+            viewModel.toggleFolderSelection(state.folders[index].id)
+        } else {
+            files.peek(index - state.folders.size)?.let { viewModel.toggleSelection(it.id) }
+        }
+    }
+    val selectIfNone: (Int) -> Unit = { index -> if (!state.selectionMode) toggleAt(index) }
+    val shortcuts = CollectionShortcuts(
+        onToggleSelect = toggleAt,
+        onSelectAll = viewModel::selectAll,
+        onDelete = { index ->
+            selectIfNone(index)
+            onRequestTrash()
+        },
+        onRename = { index ->
+            if (index < state.folders.size) {
+                viewModel.requestRename(null, state.folders[index].id)
+            } else {
+                files.peek(index - state.folders.size)?.let { viewModel.requestRename(it.id, null) }
+            }
+        },
+        onCut = { index ->
+            selectIfNone(index)
+            viewModel.cutSelected()
+        },
+        onPaste = viewModel::paste,
+        onBack = onBack,
+        onClear = if (state.selectionMode) viewModel::clearSelection else null
+    )
     val dragSelect = rememberDragSelect(
         gridState = gridState,
         onStart = viewModel::startRangeSelection,
@@ -1196,6 +1299,7 @@ private fun FilesGridContent(
         columns = gridCells,
         modifier = Modifier
             .fillMaxSize()
+            .keyboardCollection(keyboard, itemCount, shortcuts)
             .pinchZoom(onZoomIn = viewModel::zoomIn, onZoomOut = viewModel::zoomOut)
             .then(dragSelect),
         contentPadding = padding.add(horizontal = 12.dp, top = 12.dp, bottom = 100.dp),
@@ -1246,7 +1350,7 @@ private fun FilesGridContent(
                         onFolderColorSelected = { colorKey ->
                             viewModel.setFolderColor(folder.id, colorKey)
                         },
-                        modifier = Modifier.animateItem()
+                        modifier = Modifier.keyboardCollectionItem(keyboard, index).animateItem()
                     )
                 } else {
                     FolderGridItem(
@@ -1263,7 +1367,7 @@ private fun FilesGridContent(
                         onFolderColorSelected = { colorKey ->
                             viewModel.setFolderColor(folder.id, colorKey)
                         },
-                        modifier = Modifier.animateItem()
+                        modifier = Modifier.keyboardCollectionItem(keyboard, index).animateItem()
                     )
                 }
             } else {
@@ -1285,7 +1389,9 @@ private fun FilesGridContent(
                         else onOpenFolder(folder.id)
                     },
                     onLongClick = { viewModel.toggleFolderSelection(folder.id) },
-                    modifier = Modifier.animateItem()
+                    modifier = Modifier
+                        .keyboardCollectionItem(keyboard, index)
+                        .animateItem()
                 )
             }
         }
@@ -1337,7 +1443,10 @@ private fun FilesGridContent(
                         else openFile()
                     },
                     onLongClick = { viewModel.toggleSelection(file.id) },
-                    modifier = Modifier.animateItem().focusHighlight(highlighted)
+                    modifier = Modifier
+                        .keyboardCollectionItem(keyboard, state.folders.size + index)
+                        .animateItem()
+                        .focusHighlight(highlighted)
                 )
             } else {
                 FileListItem(
@@ -1352,7 +1461,10 @@ private fun FilesGridContent(
                         else openFile()
                     },
                     onLongClick = { viewModel.toggleSelection(file.id) },
-                    modifier = Modifier.animateItem().focusHighlight(highlighted)
+                    modifier = Modifier
+                        .keyboardCollectionItem(keyboard, state.folders.size + index)
+                        .animateItem()
+                        .focusHighlight(highlighted)
                 )
             }
         }

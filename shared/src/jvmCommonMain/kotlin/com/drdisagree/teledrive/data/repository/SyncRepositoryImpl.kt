@@ -54,6 +54,7 @@ class SyncRepositoryImpl(
     private val activeChannel: ActiveChannel,
     private val channelOwnership: ChannelOwnership,
     private val folderStateSynchronizer: FolderStateSynchronizer,
+    private val folderMerger: FolderMerger,
     private val publishScheduler: PublishScheduler,
     private val settingsRepository: SettingsRepository,
     private val database: TeleDriveDatabase
@@ -135,6 +136,8 @@ class SyncRepositoryImpl(
             if (folderDao.pendingPublishCount() > 0) publishScheduler.kick()
             runCatching { folderStateSynchronizer.pull() }
                 .onFailure { SafeLog.w(TAG, "Folder state pull failed", it) }
+            folderMerger.mergeDuplicates(chatId)
+            if (folderDao.pendingPublishCount() > 0) publishScheduler.kick()
         }
 
         val pendingDeletes = pendingDeleteDao.messageIdsIn(chatId).toSet()
@@ -279,6 +282,7 @@ class SyncRepositoryImpl(
             if (documents.any { it.isFolderState() }) {
                 runCatching { folderStateSynchronizer.pull() }
                     .onFailure { SafeLog.w(TAG, "Folder state pull failed", it) }
+                if (folderDao.pendingPublishCount() > 0) publishScheduler.kick()
             }
 
             val files = documents.filter {

@@ -9,6 +9,7 @@ import androidx.paging.cachedIn
 import com.drdisagree.teledrive.core.common.AppResult
 import com.drdisagree.teledrive.core.files.DeleteConsentRequest
 import com.drdisagree.teledrive.core.files.FileImporter
+import com.drdisagree.teledrive.core.files.ImportSource
 import com.drdisagree.teledrive.core.files.MimeTypes
 import com.drdisagree.teledrive.core.files.PendingShare
 import com.drdisagree.teledrive.domain.model.DriveFile
@@ -37,6 +38,7 @@ import com.drdisagree.teledrive.presentation.navigation.Route
 import com.drdisagree.teledrive.resources.Res
 import com.drdisagree.teledrive.resources.files_copied_all
 import com.drdisagree.teledrive.resources.files_copied_partial
+import com.drdisagree.teledrive.resources.files_cut_count
 import com.drdisagree.teledrive.resources.files_import_copied
 import com.drdisagree.teledrive.resources.files_import_duplicates
 import com.drdisagree.teledrive.resources.files_import_failed
@@ -80,6 +82,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -97,7 +100,8 @@ class FilesViewModel(
     private val syncRepository: SyncRepository,
     private val fileImporter: FileImporter,
     private val pendingShare: PendingShare,
-    private val makeAvailableOffline: MakeAvailableOfflineUseCase
+    private val makeAvailableOffline: MakeAvailableOfflineUseCase,
+    private val clipboard: FileClipboard
 ) : ViewModel() {
 
     private val folderId: String? = savedStateHandle.toRoute<Route.Files>().folderId
@@ -330,9 +334,10 @@ class FilesViewModel(
     private val _renameTarget = MutableStateFlow<RenameTarget?>(null)
     val renameTarget: StateFlow<RenameTarget?> = _renameTarget.asStateFlow()
 
-    fun requestRenameSelected() {
-        val fileId = selection.value.singleOrNull()
-        val folderId = folderSelection.value.singleOrNull()
+    fun requestRenameSelected() =
+        requestRename(selection.value.singleOrNull(), folderSelection.value.singleOrNull())
+
+    fun requestRename(fileId: String?, folderId: String?) {
         viewModelScope.launch {
             _renameTarget.value = when {
                 fileId != null && folderId == null ->
@@ -483,6 +488,24 @@ class FilesViewModel(
         val ids = selection.value.toList()
         val folderIds = folderSelection.value.toList()
         clearSelection()
+        move(ids, folderIds, targetFolderId)
+    }
+
+    fun cutSelected() {
+        val items = CutItems(selection.value.toList(), folderSelection.value.toList())
+        val total = items.fileIds.size + items.folderIds.size
+        if (total == 0) return
+        clearSelection()
+        clipboard.cut(items)
+        _messages.tryEmit(UiText.Resource(Res.string.files_cut_count, total))
+    }
+
+    fun paste() {
+        val items = clipboard.take() ?: return
+        move(items.fileIds, items.folderIds, folderId)
+    }
+
+    private fun move(ids: List<String>, folderIds: List<String>, targetFolderId: String?) {
         viewModelScope.launch {
             var failures = 0
             if (ids.isNotEmpty()) {
@@ -618,61 +641,103 @@ class FilesViewModel(
      */
     private val importScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private val _folderConflict = MutableStateFlow<FolderConflict?>(null)
+    val folderConflict: StateFlow<FolderConflict?> = _folderConflict.asStateFlow()
+
     fun importAndUpload(uris: List<String>, target: String? = folderId) {
         if (uris.isEmpty()) return
         importScope.launch {
-            _messages.tryEmit(UiText.Resource(Res.string.files_import_preparing))
-            var imported = 0
-            var restored = 0
-            var duplicates = 0
-            var copied = 0
-            var failed = 0
             val sources = uris.flatMap { uri -> fileImporter.expand(uri) }
-            for (source in sources) {
-                val destination = fileRepository.resolveImportFolder(
-                    source.relativeFolder,
-                    target
-                )
-                val file = fileImporter.import(source.reference)
-                if (file == null) {
-                    failed++
-                    continue
-                }
-                val existing = fileRepository.findDuplicate(file.path)
-                if (existing != null) {
-                    if (existing.folderId == destination) {
-                        duplicates++
-                    } else if (fileRepository.copyFiles(listOf(existing.id), destination)
-                                is AppResult.Success
-                    ) {
-                        copied++
-                    } else {
-                        failed++
-                    }
-                    fileImporter.discard(file)
-                    continue
-                }
-                when (
-                    val result = fileRepository.importLocalFile(file.path, destination, file.name)
-                ) {
-                    is AppResult.Success -> {
-                        val drive = result.value
-                        if (drive.hasRemoteCopy) {
-                            restored++
-                        } else {
-                            transferRepository.enqueueUpload(drive.id)
-                            imported++
-                        }
-                    }
+            val existing = fileRepository.folderNamesIn(target)
+            val clashes = sources
+                .mapNotNull { it.relativeFolder.substringBefore('/').takeIf(String::isNotEmpty) }
+                .distinct()
+                .filter { name -> existing.any { it.equals(name, ignoreCase = true) } }
+            if (clashes.isEmpty()) {
+                runImport(sources, target)
+                return@launch
+            }
+            val taken = existing.mapTo(mutableSetOf()) { it.lowercase() }
+            val renamed = clashes.associateWith { name ->
+                generateSequence(2) { it + 1 }
+                    .map { "$name ($it)" }
+                    .first { it.lowercase() !in taken }
+                    .also { taken += it.lowercase() }
+            }
+            _folderConflict.value = FolderConflict(clashes, renamed, sources, target)
+        }
+    }
 
-                    is AppResult.Failure -> {
-                        fileImporter.discard(file)
-                        failed++
+    fun mergeIntoExistingFolders() {
+        val conflict = _folderConflict.getAndUpdate { null } ?: return
+        importScope.launch { runImport(conflict.sources, conflict.target) }
+    }
+
+    fun keepBothFolders() {
+        val conflict = _folderConflict.getAndUpdate { null } ?: return
+        val sources = conflict.sources.map { source ->
+            val top = source.relativeFolder.substringBefore('/')
+            val replacement = conflict.renamed[top] ?: return@map source
+            source.copy(relativeFolder = replacement + source.relativeFolder.removePrefix(top))
+        }
+        importScope.launch { runImport(sources, conflict.target) }
+    }
+
+    fun cancelFolderImport() {
+        _folderConflict.value = null
+    }
+
+    private suspend fun runImport(sources: List<ImportSource>, target: String?) {
+        _messages.tryEmit(UiText.Resource(Res.string.files_import_preparing))
+        var imported = 0
+        var restored = 0
+        var duplicates = 0
+        var copied = 0
+        var failed = 0
+        for (source in sources) {
+            val destination = fileRepository.resolveImportFolder(
+                source.relativeFolder,
+                target
+            )
+            val file = fileImporter.import(source.reference)
+            if (file == null) {
+                failed++
+                continue
+            }
+            val existing = fileRepository.findDuplicate(file.path)
+            if (existing != null) {
+                if (existing.folderId == destination) {
+                    duplicates++
+                } else if (fileRepository.copyFiles(listOf(existing.id), destination)
+                            is AppResult.Success
+                ) {
+                    copied++
+                } else {
+                    failed++
+                }
+                fileImporter.discard(file)
+                continue
+            }
+            when (
+                val result = fileRepository.importLocalFile(file.path, destination, file.name)
+            ) {
+                is AppResult.Success -> {
+                    val drive = result.value
+                    if (drive.hasRemoteCopy) {
+                        restored++
+                    } else {
+                        transferRepository.enqueueUpload(drive.id)
+                        imported++
                     }
+                }
+
+                is AppResult.Failure -> {
+                    fileImporter.discard(file)
+                    failed++
                 }
             }
-            _messages.tryEmit(importSummary(imported, restored, duplicates, copied, failed))
         }
+        _messages.tryEmit(importSummary(imported, restored, duplicates, copied, failed))
     }
 
     private fun importSummary(
