@@ -342,7 +342,7 @@ val packageDebUser = tasks.register("packageDebUser") {
     group = "distribution"
     dependsOn("createDistributable")
     notCompatibleWithConfigurationCache("runs jpackage and dpkg-deb from a doLast closure")
-    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/TeleDrive")
+    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/TeleDrive Beta")
     val destDir = layout.buildDirectory.dir("deb")
     val workDir = layout.buildDirectory.dir("debwork")
     val javaHome = providers.gradleProperty("desktopJavaHome").orNull
@@ -439,7 +439,7 @@ val packageAppImage = tasks.register("packageAppImage") {
     description = "Builds a portable x86_64 AppImage with libVLC bundled, using linuxdeploy and appimagetool"
     group = "distribution"
     dependsOn("createDistributable")
-    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/TeleDrive").map { it.asFile }
+    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/TeleDrive Beta").map { it.asFile }
     val packaging = layout.projectDirectory.dir("packaging/linux")
     val script = packaging.file("build-appimage.sh").asFile
     val icon = layout.projectDirectory.file("icons/TeleDrive.png").asFile

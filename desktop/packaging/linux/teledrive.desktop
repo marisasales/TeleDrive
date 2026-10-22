@@ -2,7 +2,8 @@
 Type=Application
 Name=TeleDrive
 Comment=Cloud storage backed by your Telegram account
-Exec=TeleDrive
+Exec=AppRun
 Icon=teledrive
+StartupWMClass=com-drdisagree-teledrive-desktop-MainKt
 Categories=Network;FileTransfer;
 Terminal=false
