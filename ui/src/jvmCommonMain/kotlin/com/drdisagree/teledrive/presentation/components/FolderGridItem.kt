@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.drdisagree.teledrive.domain.model.DriveFolder
@@ -70,6 +71,7 @@ fun FolderGridItem(
                 if (selected) MaterialTheme.colorScheme.secondaryContainer
                 else MaterialTheme.colorScheme.surfaceContainerLow
             )
+            .semantics { if (selected) this.selected = true }
             .combinedClickable(
                 onClickLabel = stringResource(
                     if (isDesktop && clickToSelect) Res.string.common_select else Res.string.common_open

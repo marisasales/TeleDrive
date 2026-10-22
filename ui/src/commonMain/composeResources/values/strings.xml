@@ -312,6 +312,12 @@
     <string name="files_import_copied">Copied %1$d already in Telegram</string>
     <string name="files_import_duplicates">%1$d already in your drive</string>
     <string name="files_import_failed">Could not import the selected files</string>
+    <string name="files_folder_exists_title">“%1$s” already exists</string>
+    <string name="files_folders_exist_title">These folders already exist</string>
+    <string name="files_folder_exists_message">Merge adds the new files to the existing folder. Keep both uploads a separate folder named “%1$s”.</string>
+    <string name="files_folders_exist_message">Merge adds the new files to the existing folders. Keep both uploads separate folders with a number added to each name.</string>
+    <string name="files_folder_merge">Merge</string>
+    <string name="files_folder_keep_both">Keep both</string>
     <string name="files_import_preparing">Preparing files for upload…</string>
     <string name="files_import_restored">Restored %1$d from trash</string>
     <string name="files_import_uploading">Uploading %1$d</string>
@@ -345,6 +351,7 @@
     <string name="files_unhide">Unhide</string>
     <string name="files_copied_all">Copied %1$d</string>
     <string name="files_copied_partial">Copied %1$d of %2$d</string>
+    <string name="files_cut_count">Cut %1$d. Open a folder and press Ctrl+V to move them there</string>
     <string name="files_moving_to_trash">Moving %1$d to trash…</string>
     <string name="files_queued_for_download">%1$d queued for download</string>
     <string name="files_queued_for_upload">%1$d queued for upload</string>
@@ -511,12 +518,14 @@
     <string name="trash">Trash</string>
     <string name="home_trash_summary">Items: %1$d · %2$s</string>
     <string name="trash_total_size">Total size: %1$s</string>
+    <string name="trash_auto_clear_after_days">Items are deleted permanently after %1$d days.</string>
     <string name="trash_delete_permanently">Delete permanently?</string>
     <string name="trash_delete_selected_message">%1$d items, including everything inside any selected folder, will be permanently deleted from this device and from Telegram.</string>
     <string name="trash_empty">Trash is empty</string>
     <string name="trash_empty_trash_action">Empty trash</string>
     <string name="trash_empty_trash_title">Empty trash?</string>
     <string name="trash_items_permanently_deleted_device">All items will be permanently deleted from this device and Telegram. This cannot be undone.</string>
+    <string name="trash_kept_until_removed">Deleted items stay here until you remove them.</string>
     <string name="trash_restores_with_folder">Restores with the folder</string>
     <string name="trash_trashed_at">Trashed %1$s</string>
     <string name="trash_delete_partial">%1$d of %2$d could not be deleted</string>
