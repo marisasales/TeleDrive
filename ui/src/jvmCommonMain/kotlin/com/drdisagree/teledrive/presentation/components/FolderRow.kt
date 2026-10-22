@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,6 +62,7 @@ fun FolderRow(
                 if (selected) MaterialTheme.colorScheme.secondaryContainer
                 else Color.Transparent
             )
+            .semantics { if (selected) this.selected = true }
             .combinedClickable(
                 onClickLabel = stringResource(
                     if (clickToSelect) Res.string.common_select else Res.string.common_open

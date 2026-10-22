@@ -143,6 +143,7 @@ import com.drdisagree.teledrive.presentation.common.resolve
 import com.drdisagree.teledrive.presentation.components.ActionMenu
 import com.drdisagree.teledrive.presentation.components.BlockingProgressDialog
 import com.drdisagree.teledrive.presentation.components.BottomBarSnackbarHost
+import com.drdisagree.teledrive.presentation.components.CollectionShortcuts
 import com.drdisagree.teledrive.presentation.components.ConfirmDialog
 import com.drdisagree.teledrive.presentation.components.EmptyState
 import com.drdisagree.teledrive.presentation.components.FileGridItem
@@ -159,9 +160,12 @@ import com.drdisagree.teledrive.presentation.components.MenuAction
 import com.drdisagree.teledrive.presentation.components.RefreshAction
 import com.drdisagree.teledrive.presentation.components.RefreshableContent
 import com.drdisagree.teledrive.presentation.components.RenameDialog
+import com.drdisagree.teledrive.presentation.components.keyboardCollection
+import com.drdisagree.teledrive.presentation.components.keyboardCollectionItem
 import com.drdisagree.teledrive.presentation.components.liftedTopAppBarColors
 import com.drdisagree.teledrive.presentation.components.pinchZoom
 import com.drdisagree.teledrive.presentation.components.rememberDragSelect
+import com.drdisagree.teledrive.presentation.components.rememberKeyboardCollection
 import com.drdisagree.teledrive.presentation.components.rememberToolbarLift
 import com.drdisagree.teledrive.presentation.navigation.FabBottomBarInset
 import com.drdisagree.teledrive.presentation.navigation.LocalBottomBarInset
@@ -784,6 +788,8 @@ fun FilesScreen(
                                 ),
                                 onOpenFolder = onOpenFolder,
                                 onOpenFile = onOpenFile,
+                                onRequestTrash = { confirmTrash = true },
+                                onBack = onBack,
                                 viewModel = viewModel
                             )
                         }
@@ -1071,6 +1077,8 @@ private fun FilesContent(
     padding: PaddingValues,
     onOpenFolder: (String) -> Unit,
     onOpenFile: (String, PreviewSequence) -> Unit,
+    onRequestTrash: () -> Unit,
+    onBack: (() -> Unit)?,
     viewModel: FilesViewModel
 ) {
     val isDesktop = LocalPlatformCapabilities.current.isDesktop
@@ -1134,6 +1142,8 @@ private fun FilesContent(
                     padding = padding,
                     onOpenFolder = onOpenFolder,
                     onOpenFile = onOpenFile,
+                    onRequestTrash = onRequestTrash,
+                    onBack = onBack,
                     viewModel = viewModel
                 )
             }
@@ -1146,6 +1156,8 @@ private fun FilesContent(
                 padding = padding,
                 onOpenFolder = onOpenFolder,
                 onOpenFile = onOpenFile,
+                onRequestTrash = onRequestTrash,
+                onBack = onBack,
                 viewModel = viewModel
             )
         }
@@ -1162,6 +1174,8 @@ private fun FilesGridContent(
     padding: PaddingValues,
     onOpenFolder: (String) -> Unit,
     onOpenFile: (String, PreviewSequence) -> Unit,
+    onRequestTrash: () -> Unit,
+    onBack: (() -> Unit)?,
     viewModel: FilesViewModel
 ) {
     val isDesktop = LocalPlatformCapabilities.current.isDesktop
@@ -1171,6 +1185,38 @@ private fun FilesGridContent(
     } else {
         GridCells.Fixed(columns)
     }
+    val keyboard = rememberKeyboardCollection(gridState, columns)
+    val itemCount = state.folders.size + files.itemCount
+    val toggleAt: (Int) -> Unit = { index ->
+        if (index < state.folders.size) {
+            viewModel.toggleFolderSelection(state.folders[index].id)
+        } else {
+            files.peek(index - state.folders.size)?.let { viewModel.toggleSelection(it.id) }
+        }
+    }
+    val selectIfNone: (Int) -> Unit = { index -> if (!state.selectionMode) toggleAt(index) }
+    val shortcuts = CollectionShortcuts(
+        onToggleSelect = toggleAt,
+        onSelectAll = viewModel::selectAll,
+        onDelete = { index ->
+            selectIfNone(index)
+            onRequestTrash()
+        },
+        onRename = { index ->
+            if (index < state.folders.size) {
+                viewModel.requestRename(null, state.folders[index].id)
+            } else {
+                files.peek(index - state.folders.size)?.let { viewModel.requestRename(it.id, null) }
+            }
+        },
+        onCut = { index ->
+            selectIfNone(index)
+            viewModel.cutSelected()
+        },
+        onPaste = viewModel::paste,
+        onBack = onBack,
+        onClear = if (state.selectionMode) viewModel::clearSelection else null
+    )
     val dragSelect = rememberDragSelect(
         gridState = gridState,
         onStart = viewModel::startRangeSelection,
@@ -1196,6 +1242,7 @@ private fun FilesGridContent(
         columns = gridCells,
         modifier = Modifier
             .fillMaxSize()
+            .keyboardCollection(keyboard, itemCount, shortcuts)
             .pinchZoom(onZoomIn = viewModel::zoomIn, onZoomOut = viewModel::zoomOut)
             .then(dragSelect),
         contentPadding = padding.add(horizontal = 12.dp, top = 12.dp, bottom = 100.dp),
@@ -1246,7 +1293,7 @@ private fun FilesGridContent(
                         onFolderColorSelected = { colorKey ->
                             viewModel.setFolderColor(folder.id, colorKey)
                         },
-                        modifier = Modifier.animateItem()
+                        modifier = Modifier.keyboardCollectionItem(keyboard, index).animateItem()
                     )
                 } else {
                     FolderGridItem(
@@ -1263,7 +1310,7 @@ private fun FilesGridContent(
                         onFolderColorSelected = { colorKey ->
                             viewModel.setFolderColor(folder.id, colorKey)
                         },
-                        modifier = Modifier.animateItem()
+                        modifier = Modifier.keyboardCollectionItem(keyboard, index).animateItem()
                     )
                 }
             } else {
@@ -1285,7 +1332,9 @@ private fun FilesGridContent(
                         else onOpenFolder(folder.id)
                     },
                     onLongClick = { viewModel.toggleFolderSelection(folder.id) },
-                    modifier = Modifier.animateItem()
+                    modifier = Modifier
+                        .keyboardCollectionItem(keyboard, index)
+                        .animateItem()
                 )
             }
         }
@@ -1337,7 +1386,10 @@ private fun FilesGridContent(
                         else openFile()
                     },
                     onLongClick = { viewModel.toggleSelection(file.id) },
-                    modifier = Modifier.animateItem().focusHighlight(highlighted)
+                    modifier = Modifier
+                        .keyboardCollectionItem(keyboard, state.folders.size + index)
+                        .animateItem()
+                        .focusHighlight(highlighted)
                 )
             } else {
                 FileListItem(
@@ -1352,7 +1404,10 @@ private fun FilesGridContent(
                         else openFile()
                     },
                     onLongClick = { viewModel.toggleSelection(file.id) },
-                    modifier = Modifier.animateItem().focusHighlight(highlighted)
+                    modifier = Modifier
+                        .keyboardCollectionItem(keyboard, state.folders.size + index)
+                        .animateItem()
+                        .focusHighlight(highlighted)
                 )
             }
         }
