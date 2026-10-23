@@ -1,5 +1,6 @@
 package com.drdisagree.teledrive.data.repository
 
+import com.drdisagree.teledrive.core.telegram.TelegramSession
 import com.drdisagree.teledrive.data.remote.telegram.ManifestCodec
 import com.drdisagree.teledrive.domain.repository.BackupRepository
 import com.drdisagree.teledrive.domain.repository.CacheRepository
@@ -25,6 +26,7 @@ val repositoryModule = module {
     singleOf(::FileManifestPublisher)
     singleOf(::FolderPathResolver)
     singleOf(::FolderMerger)
+    singleOf(::IndexSnapshot)
     singleOf(::FolderStateSynchronizer)
     singleOf(::SettingsRepositoryImpl) bind SettingsRepository::class
     singleOf(::FileRepositoryImpl) bind FileRepository::class
@@ -33,6 +35,7 @@ val repositoryModule = module {
     singleOf(::BackupRepositoryImpl) bind BackupRepository::class
     singleOf(::ExclusionRepositoryImpl) bind ExclusionRepository::class
     singleOf(::TelegramAuthRepositoryImpl) bind TelegramAuthRepository::class
+    singleOf(::TelegramSession)
     singleOf(::ProxyRepositoryImpl) bind ProxyRepository::class
     singleOf(::SyncRepositoryImpl) bind SyncRepository::class
     singleOf(::ChannelRepositoryImpl) bind ChannelRepository::class

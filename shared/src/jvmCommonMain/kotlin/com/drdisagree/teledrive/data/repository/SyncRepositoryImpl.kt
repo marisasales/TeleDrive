@@ -18,6 +18,8 @@ import com.drdisagree.teledrive.data.local.database.TeleDriveDatabase
 import com.drdisagree.teledrive.data.local.database.inImmediateTransaction
 import com.drdisagree.teledrive.data.local.entity.FileEntity
 import com.drdisagree.teledrive.data.local.entity.FilePartEntity
+import com.drdisagree.teledrive.data.remote.telegram.ExtraFields
+import com.drdisagree.teledrive.data.remote.telegram.IndexSnapshotFile
 import com.drdisagree.teledrive.data.remote.telegram.ManifestCodec
 import com.drdisagree.teledrive.data.remote.telegram.RemoteFileManifest
 import com.drdisagree.teledrive.data.remote.telegram.RemoteFolderState
@@ -55,6 +57,7 @@ class SyncRepositoryImpl(
     private val channelOwnership: ChannelOwnership,
     private val folderStateSynchronizer: FolderStateSynchronizer,
     private val folderMerger: FolderMerger,
+    private val indexSnapshot: IndexSnapshot,
     private val publishScheduler: PublishScheduler,
     private val settingsRepository: SettingsRepository,
     private val database: TeleDriveDatabase
@@ -132,12 +135,14 @@ class SyncRepositoryImpl(
             settingsRepository.update { it.copy(storageChatId = chatId) }
         }
 
+        var fromSnapshot = 0
         if (!incremental) {
             if (folderDao.pendingPublishCount() > 0) publishScheduler.kick()
             runCatching { folderStateSynchronizer.pull() }
                 .onFailure { SafeLog.w(TAG, "Folder state pull failed", it) }
             folderMerger.mergeDuplicates(chatId)
             if (folderDao.pendingPublishCount() > 0) publishScheduler.kick()
+            if (fileDao.fileCount(chatId) == 0) fromSnapshot = applySnapshot(chatId, quiet)
         }
 
         val pendingDeletes = pendingDeleteDao.messageIdsIn(chatId).toSet()
@@ -148,11 +153,13 @@ class SyncRepositoryImpl(
         }
         val folderCache = mutableMapOf<String, String?>()
         SafeLog.d(TAG, "Sync start chat=$chatId incremental=$incremental")
-        var inserted = 0
+        var inserted = fromSnapshot
         var updated = 0
         var locked = 0
         val repairsBefore = captionRepairsQueued.size
         val seenMessageIds = mutableSetOf<Long>()
+        val channelDocuments = mutableListOf<RemoteDocument>()
+        val snapshots = mutableListOf<RemoteDocument>()
         var fromMessageId = 0L
         var pages = 0
 
@@ -176,7 +183,9 @@ class SyncRepositoryImpl(
                     seenMessageIds.add(document.messageId)
                     // Still in the chat, but a delete is owed for it.
                     if (document.messageId in pendingDeletes) continue
+                    if (indexSnapshot.isSnapshot(document)) snapshots += document
                     if (isInternalDocument(document)) continue
+                    channelDocuments += document
                     if (manifestCodec.isLocked(document.caption)) {
                         locked++
                         continue
@@ -208,10 +217,39 @@ class SyncRepositoryImpl(
         }
 
         if (captionRepairsQueued.size > repairsBefore) publishScheduler.kick()
-        return finishSync(
+        val result = finishSync(
             chatId, seenMessageIds, mappedBeforeScan, inserted, updated, locked,
             partial = incremental
         )
+        if (!incremental) {
+            runCatching { indexSnapshot.refresh(chatId, channelDocuments, snapshots) }
+                .onFailure { SafeLog.w(TAG, "Index snapshot refresh failed", it) }
+        }
+        return result
+    }
+
+    private suspend fun applySnapshot(chatId: Long, quiet: Boolean): Int {
+        val documents = runCatching { indexSnapshot.load(chatId) }
+            .onFailure { SafeLog.w(TAG, "Index snapshot load failed", it) }
+            .getOrNull()
+            .orEmpty()
+            .filter { !isInternalDocument(it) && !manifestCodec.isLocked(it.caption) }
+        if (documents.isEmpty()) return 0
+        val folderCache = mutableMapOf<String, String?>()
+        var inserted = 0
+        documents.sortedByDescending { it.messageId }.chunked(PAGE_SIZE).forEach { page ->
+            val known = existingForPage(page)
+            database.inImmediateTransaction {
+                for (document in page) {
+                    if (reconcile(document, folderCache, known) == ReconcileResult.INSERTED) {
+                        inserted++
+                    }
+                }
+            }
+            if (!quiet) _indexedSoFar.value = inserted
+        }
+        SafeLog.d(TAG, "Index snapshot added $inserted files")
+        return inserted
     }
 
     private suspend fun finishSync(
@@ -314,7 +352,9 @@ class SyncRepositoryImpl(
     private fun isInternalDocument(document: RemoteDocument): Boolean =
         document.fileName == RemoteFolderState.FILE_NAME ||
                 document.fileName == KeyBackupCodec.BACKUP_FILE_NAME ||
+                document.fileName == IndexSnapshotFile.FILE_NAME ||
                 document.caption.startsWith(RemoteFolderState.MARKER) ||
+                document.caption.startsWith(IndexSnapshotFile.MARKER) ||
                 document.caption.startsWith(KEY_BACKUP_MARKER) ||
                 document.caption.startsWith(ICON_MARKER)
 
@@ -438,12 +478,19 @@ class SyncRepositoryImpl(
         val laterPart = manifest != null && manifest.isPart && manifest.partIndex != 0
         if (laterPart && existing != null) return ReconcileResult.UNCHANGED
 
-        val local = existing?.takeIf {
-            it.pendingPublish && (manifest == null || it.modifiedAt >= manifest.modifiedAt)
-        }
+        val local = existing?.takeIf { it.pendingPublish }
+        val choice = FieldChoice(
+            local = local?.let { FileBase.of(it) },
+            remote = manifest?.let { FileBase.of(it) },
+            base = FileBase.fromText(existing?.remoteBase),
+            localIsNewer = local != null &&
+                    (manifest == null || local.modifiedAt >= manifest.modifiedAt)
+        )
 
         val folderId = when {
-            local != null -> local.folderId ?: local.preTrashFolderId
+            local != null && choice.keepsLocal { it.folderId } ->
+                local.folderId ?: local.preTrashFolderId
+
             manifest == null -> existing?.folderId
             laterPart -> manifest.folderId?.takeIf {
                 folderPathResolver.exists(it, document.chatId)
@@ -452,17 +499,20 @@ class SyncRepositoryImpl(
         }
         val folderTrashedAt = folderId?.let { folderDao.byId(it)?.trashedAt }
 
-        val name = local?.name ?: manifest?.name ?: existing?.name
-        ?: document.fileName.ifBlank { "file-${document.messageId}" }
+        val name = local?.name?.takeIf { choice.keepsLocal { it.name } }
+            ?: manifest?.name ?: existing?.name
+            ?: document.fileName.ifBlank { "file-${document.messageId}" }
         val mime = manifest?.mimeType ?: document.mimeType.ifBlank {
             MimeTypes.fromFileName(name)
         }
 
         val now = System.currentTimeMillis()
-        val trashedAt = if (local != null) {
-            local.trashedAt
-        } else {
-            manifest?.trashedAt ?: folderTrashedAt ?: existing?.trashedAt
+        val trashedAt = when {
+            local != null && choice.keepsLocal { it.trashedAt } -> local.trashedAt
+            manifest != null && choice.remoteChanged { it.trashedAt } ->
+                manifest.trashedAt ?: folderTrashedAt
+
+            else -> manifest?.trashedAt ?: folderTrashedAt ?: existing?.trashedAt
         }
         val entity = FileEntity(
             id = manifest?.fileId ?: existing?.id ?: UUID.randomUUID().toString(),
@@ -478,9 +528,12 @@ class SyncRepositoryImpl(
             remoteFileId = document.remoteFileId,
             remoteUniqueId = document.uniqueFileId,
             backupState = BackupState.BACKED_UP,
-            isHidden = local?.isHidden ?: manifest?.hidden ?: existing?.isHidden ?: false,
-            isArchived = local?.isArchived ?: manifest?.archived ?: existing?.isArchived ?: false,
-            isFavorite = local?.isFavorite ?: manifest?.favorite ?: existing?.isFavorite ?: false,
+            isHidden = local?.isHidden?.takeIf { choice.keepsLocal { it.hidden } }
+                ?: manifest?.hidden ?: existing?.isHidden ?: false,
+            isArchived = local?.isArchived?.takeIf { choice.keepsLocal { it.archived } }
+                ?: manifest?.archived ?: existing?.isArchived ?: false,
+            isFavorite = local?.isFavorite?.takeIf { choice.keepsLocal { it.favorite } }
+                ?: manifest?.favorite ?: existing?.isFavorite ?: false,
             isAvailableOffline = existing?.isAvailableOffline == true,
             isEncrypted = manifest?.encrypted
                 ?: manifestCodec.isEncryptedManifest(document.caption),
@@ -496,11 +549,19 @@ class SyncRepositoryImpl(
             pendingPublish = existing?.pendingPublish == true || queueCaptionRepair,
             createdAt = manifest?.createdAt ?: existing?.createdAt
             ?: (document.dateSeconds * 1000L),
-            modifiedAt = local?.modifiedAt ?: manifest?.modifiedAt ?: existing?.modifiedAt
-            ?: (document.dateSeconds * 1000L),
+            modifiedAt = maxOf(
+                local?.modifiedAt ?: Long.MIN_VALUE,
+                manifest?.modifiedAt ?: existing?.modifiedAt ?: (document.dateSeconds * 1000L)
+            ),
             addedAt = existing?.addedAt ?: now,
             partCount = damagedSplitCount ?: manifest?.partCount ?: existing?.partCount ?: 0,
-            iconFileId = manifest?.iconFileId ?: existing?.iconFileId
+            iconFileId = manifest?.iconFileId ?: existing?.iconFileId,
+            manifestExtra = if (manifest != null) {
+                ExtraFields.toText(manifest.extra)
+            } else {
+                existing?.manifestExtra
+            },
+            remoteBase = manifest?.let { FileBase.of(it).toText() } ?: existing?.remoteBase
         )
 
         if (laterPart) {

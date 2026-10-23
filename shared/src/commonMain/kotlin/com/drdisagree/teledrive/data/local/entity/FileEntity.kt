@@ -58,5 +58,7 @@ data class FileEntity(
     val iconFileId: String? = null,
     val createdAt: Long,
     val modifiedAt: Long,
-    val addedAt: Long
+    val addedAt: Long,
+    val manifestExtra: String? = null,
+    val remoteBase: String? = null
 )
