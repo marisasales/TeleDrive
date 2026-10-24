@@ -272,6 +272,7 @@ class FileRepositoryImpl(
         val unique = FileNameUtils.uniqueName(sanitized) { candidate ->
             siblingNames.any { it.equals(candidate, ignoreCase = true) }
         }
+        if (unique == file.name) return AppResult.Success(Unit)
         val now = System.currentTimeMillis()
         fileDao.rename(id, unique, now)
 
@@ -291,6 +292,7 @@ class FileRepositoryImpl(
     override suspend fun renameFolder(id: String, newName: String): AppResult<Unit> {
         val folder = folderDao.byId(id) ?: return AppResult.Failure(AppError.NotFound)
         val sanitized = FileNameUtils.sanitize(newName)
+        if (sanitized == folder.name) return AppResult.Success(Unit)
         val siblings = folderDao.namesInExcluding(
             folder.parentId,
             activeChannel.id(),
