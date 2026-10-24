@@ -47,14 +47,9 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -457,59 +452,9 @@ private fun DesktopNavigationSidebar(
             primaryDestinations.forEach { destination ->
                 val selected = destination == selectedDestination
                 val label = stringResource(destination.labelRes)
-                TooltipBox(
-                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                        TooltipAnchorPosition.End
-                    ),
-                    tooltip = { PlainTooltip { Text(label) } },
-                    state = rememberTooltipState()
-                ) {
-                    Surface(
-                        onClick = { if (!selected) onNavigate(destination) },
-                        color = if (selected) MaterialTheme.colorScheme.secondaryContainer
-                        else MaterialTheme.colorScheme.surfaceContainerLow,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(
-                                horizontal = if (collapsed) 0.dp else 12.dp,
-                                vertical = 11.dp
-                            ),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = if (collapsed) Arrangement.Center
-                            else Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                if (selected) destination.selectedIcon else destination.icon,
-                                contentDescription = label.takeIf { collapsed },
-                                tint = if (selected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            if (!collapsed) {
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(Modifier.height(4.dp))
-            }
-            val trashLabel = "Lixeira"
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                    TooltipAnchorPosition.End
-                ),
-                tooltip = { PlainTooltip { Text(trashLabel) } },
-                state = rememberTooltipState()
-            ) {
                 Surface(
-                    onClick = { if (!trashSelected) onOpenTrash() },
-                    color = if (trashSelected) MaterialTheme.colorScheme.secondaryContainer
+                    onClick = { if (!selected) onNavigate(destination) },
+                    color = if (selected) MaterialTheme.colorScheme.secondaryContainer
                     else MaterialTheme.colorScheme.surfaceContainerLow,
                     shape = MaterialTheme.shapes.medium,
                     modifier = Modifier.fillMaxWidth()
@@ -524,19 +469,53 @@ private fun DesktopNavigationSidebar(
                         else Arrangement.spacedBy(12.dp)
                     ) {
                         Icon(
-                            Icons.Filled.DeleteOutline,
-                            contentDescription = trashLabel.takeIf { collapsed },
-                            tint = if (trashSelected) MaterialTheme.colorScheme.primary
+                            if (selected) destination.selectedIcon else destination.icon,
+                            contentDescription = label.takeIf { collapsed },
+                            tint = if (selected) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         if (!collapsed) {
                             Text(
-                                text = trashLabel,
+                                text = label,
                                 style = MaterialTheme.typography.labelLarge,
-                                color = if (trashSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
                                 else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+            }
+            val trashLabel = "Lixeira"
+            Surface(
+                onClick = { if (!trashSelected) onOpenTrash() },
+                color = if (trashSelected) MaterialTheme.colorScheme.secondaryContainer
+                else MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(
+                        horizontal = if (collapsed) 0.dp else 12.dp,
+                        vertical = 11.dp
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = if (collapsed) Arrangement.Center
+                    else Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.DeleteOutline,
+                        contentDescription = trashLabel.takeIf { collapsed },
+                        tint = if (trashSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!collapsed) {
+                        Text(
+                            text = trashLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (trashSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -549,43 +528,35 @@ private fun DesktopNavigationSidebar(
             val settings = TopLevelDestination.SETTINGS
             val settingsSelected = settings == selectedDestination
             val settingsLabel = stringResource(settings.labelRes)
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                    TooltipAnchorPosition.End
-                ),
-                tooltip = { PlainTooltip { Text(settingsLabel) } },
-                state = rememberTooltipState()
+            Surface(
+                onClick = { if (!settingsSelected) onNavigate(settings) },
+                color = if (settingsSelected) MaterialTheme.colorScheme.secondaryContainer
+                else MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Surface(
-                    onClick = { if (!settingsSelected) onNavigate(settings) },
-                    color = if (settingsSelected) MaterialTheme.colorScheme.secondaryContainer
-                    else MaterialTheme.colorScheme.surfaceContainerLow,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier.padding(
+                        horizontal = if (collapsed) 0.dp else 12.dp,
+                        vertical = 11.dp
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = if (collapsed) Arrangement.Center
+                    else Arrangement.spacedBy(12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(
-                            horizontal = if (collapsed) 0.dp else 12.dp,
-                            vertical = 11.dp
-                        ),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = if (collapsed) Arrangement.Center
-                        else Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            if (settingsSelected) settings.selectedIcon else settings.icon,
-                            contentDescription = settingsLabel.takeIf { collapsed },
-                            tint = if (settingsSelected) MaterialTheme.colorScheme.primary
+                    Icon(
+                        if (settingsSelected) settings.selectedIcon else settings.icon,
+                        contentDescription = settingsLabel.takeIf { collapsed },
+                        tint = if (settingsSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!collapsed) {
+                        Text(
+                            text = settingsLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (settingsSelected) MaterialTheme.colorScheme.onSecondaryContainer
                             else MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (!collapsed) {
-                            Text(
-                                text = settingsLabel,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (settingsSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
                     }
                 }
             }
