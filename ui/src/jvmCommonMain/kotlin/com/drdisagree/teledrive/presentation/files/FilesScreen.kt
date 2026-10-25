@@ -10,6 +10,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,10 +18,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -87,7 +90,8 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.ToggleFloatingActionButton
-import androidx.compose.material3.TopAppBar
+import com.drdisagree.teledrive.presentation.components.WorkspaceTopAppBar as TopAppBar
+import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -148,6 +152,7 @@ import com.drdisagree.teledrive.presentation.components.CollectionShortcuts
 import com.drdisagree.teledrive.presentation.components.ConfirmDialog
 import com.drdisagree.teledrive.presentation.components.EmptyState
 import com.drdisagree.teledrive.presentation.components.FileGridItem
+import com.drdisagree.teledrive.presentation.components.ViewModeToggle
 import com.drdisagree.teledrive.presentation.components.SortMenu
 import com.drdisagree.teledrive.presentation.components.FileInfoSheet
 import com.drdisagree.teledrive.presentation.components.FileListItem
@@ -229,12 +234,15 @@ import com.drdisagree.teledrive.resources.files_only_files_verified_telegram
 import com.drdisagree.teledrive.resources.files_rename_file
 import com.drdisagree.teledrive.resources.files_rename_folder
 import com.drdisagree.teledrive.resources.files_search
+import com.drdisagree.teledrive.resources.app_search_files
 import com.drdisagree.teledrive.resources.files_share_destination_confirm
 import com.drdisagree.teledrive.resources.files_share_destination_title
 import com.drdisagree.teledrive.resources.files_show_in_file_manager
 import com.drdisagree.teledrive.resources.files_sort
 import com.drdisagree.teledrive.resources.search_section_folders
 import com.drdisagree.teledrive.resources.search_section_files
+import com.drdisagree.teledrive.resources.view_mode_grid
+import com.drdisagree.teledrive.resources.view_mode_list
 import com.drdisagree.teledrive.resources.files_sort_date_modified
 import com.drdisagree.teledrive.resources.files_sort_name
 import com.drdisagree.teledrive.resources.files_sort_size
@@ -618,9 +626,9 @@ fun FilesScreen(
                             }
                         )
                     } else {
-                        TopAppBar(
+                        FilesTopAppBar(
                             colors = liftedTopAppBarColors(lifted),
-                            title = { Text(stringResource(Res.string.files)) },
+                            title = stringResource(Res.string.files),
                             navigationIcon = {
                                 onBack?.let {
                                     IconButton(onClick = it) {
@@ -631,20 +639,29 @@ fun FilesScreen(
                                     }
                                 }
                             },
-                            actions = {
+                            actions = { showInlineSearch, searchFieldModifier ->
                                 RefreshAction(
                                     refreshing = refreshing,
                                     onRefresh = viewModel::refresh
                                 )
-                                if (isDesktop) {
-                                    ShortcutTooltip("Ctrl+F") {
-                                        IconButton(onClick = onOpenSearch) {
-                                            Icon(Icons.Filled.Search, contentDescription = stringResource(Res.string.files_search))
-                                        }
+                                if (showInlineSearch && isDesktop) {
+                                    ShortcutTooltip("Ctrl+F", modifier = searchFieldModifier) {
+                                        FilesSearchField(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            onClick = onOpenSearch
+                                        )
                                     }
+                                } else if (showInlineSearch) {
+                                    FilesSearchField(
+                                        modifier = searchFieldModifier,
+                                        onClick = onOpenSearch
+                                    )
                                 } else {
                                     IconButton(onClick = onOpenSearch) {
-                                        Icon(Icons.Filled.Search, contentDescription = stringResource(Res.string.files_search))
+                                        Icon(
+                                            Icons.Filled.Search,
+                                            contentDescription = stringResource(Res.string.files_search)
+                                        )
                                     }
                                 }
                                 if (isDesktop) {
@@ -658,6 +675,12 @@ fun FilesScreen(
                                         Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(Res.string.files_new_folder))
                                     }
                                 }
+                                ViewModeToggle(
+                                    viewMode = state.viewMode,
+                                    onModeChange = viewModel::setViewMode,
+                                    gridDescription = stringResource(Res.string.view_mode_grid),
+                                    listDescription = stringResource(Res.string.view_mode_list)
+                                )
                                 IconButton(onClick = { showSortMenu = true }) {
                                     Icon(
                                         Icons.AutoMirrored.Filled.Sort,
@@ -1123,6 +1146,64 @@ private fun CrumbLabel(
 
 private const val INLINE_CRUMBS = 3
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun FilesTopAppBar(
+    title: String,
+    colors: TopAppBarColors,
+    navigationIcon: @Composable () -> Unit = {},
+    actions: @Composable RowScope.(showInlineSearch: Boolean, searchModifier: Modifier) -> Unit
+) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // App-bar actions are measured before the title: never let search consume their full width.
+        val showInlineSearch = maxWidth >= 600.dp
+        val searchWidth = (maxWidth * 0.35f).coerceIn(180.dp, 420.dp)
+        // Keep the search near the workspace center while reserving all trailing actions.
+        val searchEndGap = ((maxWidth - searchWidth) / 2 - 192.dp).coerceAtLeast(0.dp)
+        TopAppBar(
+            title = {
+                Text(title, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+            },
+            colors = colors,
+            navigationIcon = navigationIcon,
+            actions = { actions(showInlineSearch, Modifier.width(searchWidth + searchEndGap).padding(end = searchEndGap)) }
+        )
+    }
+}
+
+@Composable
+internal fun FilesSearchField(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val shape = MaterialTheme.shapes.small
+    Row(
+        modifier = modifier
+            .height(48.dp)
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Search,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = stringResource(Res.string.app_search_files),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
 @Composable
 private fun FilesContent(
     highlightedFileId: String?,
@@ -1434,6 +1515,7 @@ private fun FilesGridContent(
                 FileGridItem(
                     file = file,
                     selected = selected,
+                    showMetadata = true,
                     clickToSelect = isDesktop && state.desktopClickToSelect,
                     onDoubleClick = openFile,
                     onClick = {
@@ -1531,8 +1613,13 @@ private fun DesktopFileColumnsHeader() {
 }
 
 @Composable
-private fun ShortcutTooltip(shortcut: String, content: @Composable () -> Unit) {
+internal fun ShortcutTooltip(
+    shortcut: String,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
     TooltipBox(
+        modifier = modifier,
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
         tooltip = { PlainTooltip { Text(shortcut) } },
         state = rememberTooltipState(),

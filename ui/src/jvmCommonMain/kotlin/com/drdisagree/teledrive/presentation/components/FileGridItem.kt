@@ -2,6 +2,7 @@ package com.drdisagree.teledrive.presentation.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,13 +53,26 @@ fun FileGridItem(
     clickToSelect: Boolean = false,
     onDoubleClick: () -> Unit = onClick,
     modifier: Modifier = Modifier,
-    compact: Boolean = false
+    compact: Boolean = false,
+    showMetadata: Boolean = false
 ) {
     val isDesktop = LocalPlatformCapabilities.current.isDesktop
     val selectionLabel = "${stringResource(Res.string.common_select)}: ${file.name}"
     Column(
         modifier = modifier
             .clip(MaterialTheme.shapes.large)
+            .then(
+                if (showMetadata) {
+                    Modifier.border(
+                        1.dp,
+                        if (selected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                        MaterialTheme.shapes.large
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .background(
                 if (selected) MaterialTheme.colorScheme.secondaryContainer
                 else MaterialTheme.colorScheme.surfaceContainerLow
@@ -79,7 +93,7 @@ fun FileGridItem(
                 contentDescription = if (compact) file.name else null,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1f)
+                    .aspectRatio(if (showMetadata) 1.45f else 1f)
             )
             if (isDesktop && (!clickToSelect || selected)) {
                 Checkbox(
@@ -111,7 +125,7 @@ fun FileGridItem(
             }
         }
         if (!compact) {
-            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = file.name,
@@ -143,13 +157,34 @@ fun FileGridItem(
                         )
                     }
                 }
-                Text(
-                    text = Formatters.bytes(file.sizeBytes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                if (showMetadata) {
+                    val fileType = file.extension
+                        .takeIf(String::isNotBlank)
+                        ?.uppercase()
+                        ?: file.mimeType.substringAfterLast('/').uppercase()
+                    Text(
+                        text = "$fileType · ${Formatters.bytes(file.sizeBytes)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = Formatters.date(file.modifiedAt),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                } else {
+                    Text(
+                        text = Formatters.bytes(file.sizeBytes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }

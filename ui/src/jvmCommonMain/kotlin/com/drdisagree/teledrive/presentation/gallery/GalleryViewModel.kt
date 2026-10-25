@@ -24,6 +24,7 @@ import com.drdisagree.teledrive.domain.model.FileQuerySpec
 import com.drdisagree.teledrive.domain.model.FileSortField
 import com.drdisagree.teledrive.domain.model.MediaAlbum
 import com.drdisagree.teledrive.domain.model.SortDirection
+import com.drdisagree.teledrive.domain.model.ViewMode
 import com.drdisagree.teledrive.domain.repository.FileRepository
 import com.drdisagree.teledrive.domain.repository.SettingsRepository
 import com.drdisagree.teledrive.domain.repository.SyncRepository
@@ -165,10 +166,7 @@ class GalleryViewModel(
         settingsRepository.preferences
             .map { it.galleryGridSize to it.albumGridSize }
             .distinctUntilChanged(),
-        combine(
-            albums,
-            settingsRepository.preferences.map { it.galleryViewMode }.distinctUntilChanged()
-        ) { albumList, mode -> albumList to mode }
+            albums.map { albumList -> albumList to ViewMode.GRID }
     ) { currentTab, (field, direction), selectionState, sizes, extras ->
         val (selected, capabilities) = selectionState
         val (albumList, mode) = extras
@@ -233,6 +231,13 @@ class GalleryViewModel(
         tab.update { value }
     }
 
+    fun setViewMode(mode: ViewMode) {
+        clearSelection()
+        viewModelScope.launch {
+            settingsRepository.update { it.copy(galleryViewMode = mode) }
+        }
+    }
+
     fun setSort(field: FileSortField, direction: SortDirection) {
         viewModelScope.launch {
             settingsRepository.update {
@@ -263,8 +268,8 @@ class GalleryViewModel(
     private fun applyZoom(transform: (GridZoomLevel) -> GridZoomLevel) {
         viewModelScope.launch {
             settingsRepository.update { prefs ->
-                val next = transform(GridZoomLevel(prefs.galleryViewMode, prefs.galleryGridSize))
-                prefs.copy(galleryViewMode = next.viewMode, galleryGridSize = next.gridSize)
+                val next = transform(GridZoomLevel(ViewMode.GRID, prefs.galleryGridSize))
+                prefs.copy(galleryViewMode = ViewMode.GRID, galleryGridSize = next.gridSize)
             }
         }
     }
