@@ -22,7 +22,7 @@ import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.RestoreFromTrash
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,7 +33,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.drdisagree.teledrive.presentation.components.WorkspaceTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -88,6 +88,10 @@ import com.drdisagree.teledrive.resources.trash_empty
 import com.drdisagree.teledrive.resources.trash_empty_trash_action
 import com.drdisagree.teledrive.resources.trash_empty_trash_title
 import com.drdisagree.teledrive.resources.trash_items_permanently_deleted_device
+import com.drdisagree.teledrive.resources.trash_restore_all_message
+import com.drdisagree.teledrive.resources.trash_restore_all_title
+import com.drdisagree.teledrive.resources.trash_restore_selected_message
+import com.drdisagree.teledrive.resources.trash_restore_selected_title
 import com.drdisagree.teledrive.resources.trash_kept_until_removed
 import com.drdisagree.teledrive.resources.trash_restores_with_folder
 import com.drdisagree.teledrive.resources.trash_trashed_at
@@ -104,6 +108,8 @@ fun TrashScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmEmpty by remember { mutableStateOf(false) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
+    var confirmRestoreAll by remember { mutableStateOf(false) }
+    var confirmRestoreSelected by remember { mutableStateOf(false) }
 
     CollectSnackbarMessages(viewModel.messages, snackbarHostState)
 
@@ -188,9 +194,9 @@ fun TrashScreen(
                                 }
                             )
                         }
-                        IconButton(onClick = viewModel::restoreSelected) {
+                        IconButton(onClick = { confirmRestoreSelected = true }) {
                             Icon(
-                                Icons.Filled.RestoreFromTrash,
+                                Icons.Filled.Restore,
                                 contentDescription = stringResource(Res.string.common_restore)
                             )
                         }
@@ -228,7 +234,19 @@ fun TrashScreen(
                     },
                     actions = {
                         if (state.items.isNotEmpty()) {
-                            IconButton(onClick = { confirmEmpty = true }) {
+                            IconButton(
+                                onClick = { confirmRestoreAll = true },
+                                enabled = state.working == null
+                            ) {
+                                Icon(
+                                    Icons.Filled.Restore,
+                                    contentDescription = stringResource(Res.string.common_restore)
+                                )
+                            }
+                            IconButton(
+                                onClick = { confirmEmpty = true },
+                                enabled = state.working == null
+                            ) {
                                 Icon(
                                     Icons.Filled.DeleteForever,
                                     contentDescription = stringResource(Res.string.trash_empty_trash_action)
@@ -259,7 +277,7 @@ fun TrashScreen(
                 .fillMaxSize()
                 .keyboardCollection(keyboard, state.rows.size, shortcuts)
                 .then(dragSelect),
-            contentPadding = padding.add(horizontal = 12.dp, top = 12.dp, bottom = 12.dp)
+            contentPadding = padding.add(horizontal = 20.dp, top = 16.dp, bottom = 16.dp)
         ) {
             itemsIndexed(
                 state.rows,
@@ -274,11 +292,11 @@ fun TrashScreen(
                         .keyboardCollectionItem(keyboard, index)
                         .animateItem()
                         .fillMaxWidth()
-                        .padding(start = (row.depth * 20).dp)
+                        .padding(start = (row.depth * 20).dp, top = 3.dp, bottom = 3.dp)
                         .clip(MaterialTheme.shapes.large)
                         .background(
                             if (selected) MaterialTheme.colorScheme.secondaryContainer
-                            else Color.Transparent
+                            else MaterialTheme.colorScheme.surfaceContainerLow
                         )
                         .semantics {
                             if (selected) this.selected = true
@@ -314,7 +332,7 @@ fun TrashScreen(
                                 if (row.selectable) viewModel.toggleSelection(item.id)
                             }
                         )
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     when (item) {
@@ -373,6 +391,30 @@ fun TrashScreen(
         }
     }
 
+    if (confirmRestoreAll) {
+        ConfirmDialog(
+            title = stringResource(Res.string.trash_restore_all_title),
+            message = stringResource(Res.string.trash_restore_all_message),
+            confirmLabel = stringResource(Res.string.common_restore),
+            onConfirm = {
+                confirmRestoreAll = false
+                viewModel.restoreAll()
+            },
+            onDismiss = { confirmRestoreAll = false }
+        )
+    }
+    if (confirmRestoreSelected) {
+        ConfirmDialog(
+            title = stringResource(Res.string.trash_restore_selected_title),
+            message = stringResource(Res.string.trash_restore_selected_message),
+            confirmLabel = stringResource(Res.string.common_restore),
+            onConfirm = {
+                confirmRestoreSelected = false
+                viewModel.restoreSelected()
+            },
+            onDismiss = { confirmRestoreSelected = false }
+        )
+    }
     if (confirmEmpty) {
         ConfirmDialog(
             title = stringResource(Res.string.trash_empty_trash_title),

@@ -118,6 +118,15 @@ import com.drdisagree.teledrive.presentation.platform.LocalPermissionRequester
 import com.drdisagree.teledrive.presentation.platform.LocalPlatformCapabilities
 import com.drdisagree.teledrive.presentation.preview.PreviewSequence
 import com.drdisagree.teledrive.resources.Res
+import com.drdisagree.teledrive.resources.home_greeting
+import com.drdisagree.teledrive.resources.home_greeting_afternoon
+import com.drdisagree.teledrive.resources.home_greeting_dawn
+import com.drdisagree.teledrive.resources.home_greeting_evening
+import com.drdisagree.teledrive.resources.home_greeting_morning
+import androidx.compose.runtime.produceState
+import androidx.lifecycle.repeatOnLifecycle
+import java.time.ZonedDateTime
+import com.drdisagree.teledrive.resources.redesign_transfers
 import com.drdisagree.teledrive.resources.app_backed_up
 import com.drdisagree.teledrive.resources.app_name
 import com.drdisagree.teledrive.resources.backup_age_days
@@ -194,6 +203,7 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val trashSummary by viewModel.trashSummary.collectAsStateWithLifecycle()
+    val personalization by viewModel.personalization.collectAsStateWithLifecycle()
     var lastConnectionStatus by remember { mutableStateOf<ConnectionStatus?>(null) }
     val scanning by viewModel.scanning.collectAsStateWithLifecycle()
     val pendingSync by viewModel.pendingSync.collectAsStateWithLifecycle()
@@ -201,6 +211,14 @@ fun HomeScreen(
     if (pendingSync.visible) shownSync = pendingSync
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val now by produceState(ZonedDateTime.now(), personalization, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                value = ZonedDateTime.now()
+                delay(1_000)
+            }
+        }
+    }
     val permissionRequester = LocalPermissionRequester.current
     val capabilities = LocalPlatformCapabilities.current
 
@@ -235,8 +253,13 @@ fun HomeScreen(
         snackbarHost = { BottomBarSnackbarHost(snackbarHostState) },
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text(stringResource(Res.string.app_name)) },
-                subtitle = {
+            title = {
+                if (scrollBehavior.state.collapsedFraction >= 0.5f) {
+                    Text(stringResource(Res.string.app_name))
+                }
+            },
+            expandedHeight = 96.dp,
+            subtitle = {
                     val status = rememberConnectionStatus(
                         offline = state.offline,
                         connection = state.connection,
@@ -297,7 +320,7 @@ fun HomeScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = padding.add(
-                    horizontal = 16.dp,
+                    horizontal = if (maxWidth >= 840.dp) 32.dp else 16.dp,
                     top = 8.dp,
                     bottom = 24.dp + LocalBottomBarInset.current
                 ),
@@ -316,6 +339,22 @@ fun HomeScreen(
                         )
                     }
                 }
+            }
+            item(key = "drive-overview") {
+                DriveOverview(
+                    greeting = if (personalization.displayName.isBlank()) {
+                        stringResource(Res.string.home_greeting)
+                    } else {
+                        val greetingResource = when (homeGreetingPeriodForHour(now.hour)) {
+                            HomeGreetingPeriod.DAWN -> Res.string.home_greeting_dawn
+                            HomeGreetingPeriod.MORNING -> Res.string.home_greeting_morning
+                            HomeGreetingPeriod.AFTERNOON -> Res.string.home_greeting_afternoon
+                            HomeGreetingPeriod.EVENING -> Res.string.home_greeting_evening
+                        }
+                        stringResource(greetingResource, personalization.displayName)
+                    },
+                    dateTime = formatHomeDateTime(now, personalization)
+                )
             }
             if (capabilities.supportsAutoBackup) {
                 item(key = "backup") {
@@ -454,6 +493,27 @@ fun HomeScreen(
                 }
             }
         }
+        }
+    }
+}
+
+@Composable
+internal fun DriveOverview(
+    greeting: String,
+    dateTime: String
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                greeting,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                dateTime,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

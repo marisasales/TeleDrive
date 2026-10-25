@@ -48,6 +48,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
+import com.drdisagree.teledrive.core.telegram.TelegramAuthState
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -77,6 +79,23 @@ class HomeViewModel(
 
     val scanning: StateFlow<Boolean> = _scanning.asStateFlow()
     val messages: SharedFlow<UiText> = _messages.asSharedFlow()
+
+    private val displayName = telegramAuthRepository.authState.mapLatest { auth ->
+        if (auth != TelegramAuthState.Ready) return@mapLatest ""
+        when (val result = telegramAuthRepository.getCurrentUser()) {
+            is AppResult.Success -> with(result.value) {
+                listOf(firstName, lastName, username.orEmpty()).firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+            }
+            is AppResult.Failure -> ""
+        }
+    }
+
+    val personalization: StateFlow<HomePersonalization> = combine(
+        displayName,
+        settingsRepository.preferences
+    ) { name, prefs ->
+        HomePersonalization(name, prefs.use24HourClock, prefs.language)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomePersonalization())
 
     val trashSummary: StateFlow<HomeTrashSummary> = combine(
         trashRepository.observeTrash().map { it.size },
