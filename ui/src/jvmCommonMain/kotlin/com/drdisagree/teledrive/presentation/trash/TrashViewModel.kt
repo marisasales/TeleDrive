@@ -175,8 +175,20 @@ class TrashViewModel(
 
     fun restoreSelected() {
         val (fileIds, folderIds) = partitionSelection()
-        val total = fileIds.size + folderIds.size
         clearSelection()
+        restoreItems(fileIds, folderIds)
+    }
+
+    fun restoreAll() {
+        val items = uiState.value.items
+        val fileIds = items.filterIsInstance<TrashItem.File>().map { it.id }
+        val folderIds = items.filterIsInstance<TrashItem.Folder>().map { it.id }
+        restoreItems(fileIds, folderIds)
+    }
+
+    private fun restoreItems(fileIds: List<String>, folderIds: List<String>) {
+        val total = fileIds.size + folderIds.size
+        if (total == 0) return
         viewModelScope.launch {
             working.value = UiText.PluralResource(Res.plurals.trash_restoring_items, total, total)
             var failed = 0
