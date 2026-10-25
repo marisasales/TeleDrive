@@ -31,7 +31,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.drdisagree.teledrive.presentation.components.WorkspaceTopAppBar as TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -112,9 +112,10 @@ import com.drdisagree.teledrive.resources.settings_folder_unreadable
 import com.drdisagree.teledrive.resources.settings_free_up_space_title
 import com.drdisagree.teledrive.resources.settings_gallery_previews_regenerated_browse
 import com.drdisagree.teledrive.resources.settings_gallery_grid_columns
-import com.drdisagree.teledrive.resources.settings_gallery_grid_view
 import com.drdisagree.teledrive.resources.settings_grid_columns
-import com.drdisagree.teledrive.resources.settings_grid_view
+import com.drdisagree.teledrive.resources.settings_clock_format
+import com.drdisagree.teledrive.resources.settings_clock_24h
+import com.drdisagree.teledrive.resources.settings_clock_12h
 import com.drdisagree.teledrive.resources.settings_hidden_shortcut
 import com.drdisagree.teledrive.resources.settings_hides_app_screenshots_screen
 import com.drdisagree.teledrive.resources.settings_key_backup_stored
@@ -299,7 +300,10 @@ fun SettingsSectionScreen(
                             .fillMaxHeight()
                             .verticalScroll(scrollState)
                     ) {
-                        Spacer(Modifier.height(8.dp))
+                        com.drdisagree.teledrive.presentation.components.WorkspaceIntro(
+                            title = stringResource(selectedSection.titleRes),
+                            description = stringResource(selectedSection.subtitleRes)
+                        )
                         SettingsSectionContent(
                             section = selectedSection,
                             state = state,
@@ -319,7 +323,10 @@ fun SettingsSectionScreen(
                         .fillMaxSize()
                         .verticalScroll(scrollState)
                 ) {
-                    Spacer(Modifier.height(8.dp))
+                    com.drdisagree.teledrive.presentation.components.WorkspaceIntro(
+                        title = stringResource(selectedSection.titleRes),
+                        description = stringResource(selectedSection.subtitleRes)
+                    )
                     SettingsSectionContent(
                         section = selectedSection,
                         state = state,
@@ -1059,6 +1066,7 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
     val capabilities = LocalPlatformCapabilities.current
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showClockDialog by remember { mutableStateOf(false) }
     var showDesktopClickDialog by remember { mutableStateOf(false) }
 
     if (showThemeDialog) {
@@ -1084,6 +1092,22 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
                 viewModel.update { it.copy(language = choice) }
             },
             onDismiss = { showLanguageDialog = false }
+        )
+    }
+
+    if (showClockDialog) {
+        ChoiceDialog(
+            title = stringResource(Res.string.settings_clock_format),
+            options = listOf(
+                true to stringResource(Res.string.settings_clock_24h),
+                false to stringResource(Res.string.settings_clock_12h)
+            ),
+            selected = prefs.use24HourClock,
+            onSelect = { choice ->
+                showClockDialog = false
+                viewModel.update { it.copy(use24HourClock = choice) }
+            },
+            onDismiss = { showClockDialog = false }
         )
     }
 
@@ -1137,17 +1161,13 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
             )
         }
         add {
-            SettingsSwitchRow(
-                title = stringResource(Res.string.settings_grid_view),
-                checked = prefs.viewMode == ViewMode.GRID,
-                onChange = { value ->
-                    viewModel.update {
-                        it.copy(viewMode = if (value) ViewMode.GRID else ViewMode.LIST)
-                    }
-                }
+            SettingsClickRow(
+                title = stringResource(Res.string.settings_clock_format),
+                subtitle = stringResource(if (prefs.use24HourClock) Res.string.settings_clock_24h else Res.string.settings_clock_12h),
+                onClick = { showClockDialog = true }
             )
         }
-        add(visible = prefs.viewMode == ViewMode.GRID) {
+        add {
             SettingsSliderRow(
                 title = stringResource(Res.string.settings_grid_columns),
                 value = prefs.gridSize,
@@ -1166,17 +1186,6 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
             )
         }
         add {
-            SettingsSwitchRow(
-                title = stringResource(Res.string.settings_gallery_grid_view),
-                checked = prefs.galleryViewMode == ViewMode.GRID,
-                onChange = { value ->
-                    viewModel.update {
-                        it.copy(galleryViewMode = if (value) ViewMode.GRID else ViewMode.LIST)
-                    }
-                }
-            )
-        }
-        add(visible = prefs.galleryViewMode == ViewMode.GRID) {
             SettingsSliderRow(
                 title = stringResource(Res.string.settings_gallery_grid_columns),
                 value = prefs.galleryGridSize,

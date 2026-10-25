@@ -63,16 +63,19 @@ fun LockScreen(onUnlocked: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = Icons.Filled.Lock,
-                contentDescription = null,
-                modifier = Modifier.size(56.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(80.dp)
+            ) {
+                androidx.compose.foundation.layout.Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
             Spacer(Modifier.height(20.dp))
             Text(
                 text = stringResource(Res.string.lock_screen_title),
-                style = MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.headlineSmall
             )
             statusText?.let { message ->
                 Spacer(Modifier.height(8.dp))

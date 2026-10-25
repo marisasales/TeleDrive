@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -234,6 +236,8 @@ fun OnboardingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 720.dp)
                 .padding(top = padding.calculateTopPadding())
                 .imePadding()
         ) {
@@ -526,11 +530,11 @@ private fun OnboardingPage(
 private fun HeroShape(icon: ImageVector?, iconPainter: Painter?) {
     Box(
         modifier = Modifier
-            .size(96.dp)
-            .clip(MaterialShapes.Cookie9Sided.toShape())
+            .size(80.dp)
+            .clip(RoundedCornerShape(24.dp))
             .background(
                 color = MaterialTheme.colorScheme.primaryContainer,
-                shape = MaterialShapes.Cookie9Sided.toShape()
+                shape = RoundedCornerShape(24.dp)
             ),
         contentAlignment = Alignment.Center
     ) {
@@ -538,14 +542,14 @@ private fun HeroShape(icon: ImageVector?, iconPainter: Painter?) {
             iconPainter != null -> Icon(
                 painter = iconPainter,
                 contentDescription = null,
-                modifier = Modifier.size(128.dp),
+                modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
 
             icon != null -> Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(36.dp),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }

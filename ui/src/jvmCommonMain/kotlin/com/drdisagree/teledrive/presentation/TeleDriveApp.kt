@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -72,6 +73,10 @@ import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.map
+import com.drdisagree.teledrive.domain.repository.TrashRepository
+import com.drdisagree.teledrive.domain.repository.TransferRepository
+import org.koin.compose.koinInject
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -102,6 +107,10 @@ import com.drdisagree.teledrive.presentation.platform.LocalUrlOpener
 import com.drdisagree.teledrive.presentation.theme.TeleDriveTheme
 import com.drdisagree.teledrive.presentation.theme.systemDarkTheme
 import com.drdisagree.teledrive.resources.Res
+import com.drdisagree.teledrive.resources.redesign_library
+import com.drdisagree.teledrive.resources.transfers
+import androidx.compose.material.icons.filled.SwapVert
+import com.drdisagree.teledrive.resources.trash
 import com.drdisagree.teledrive.resources.common_collapse
 import com.drdisagree.teledrive.resources.common_expand
 import kotlin.time.Duration.Companion.milliseconds
@@ -288,6 +297,10 @@ private fun MainScaffold(
         !currentDestination.let { it?.hasRoute(Route.Onboarding::class) == true } &&
         currentDestination?.hasRoute(Route.Preview::class) != true
     ) {
+        val activeTransferCount by koinInject<TransferRepository>()
+            .observeActiveCount().collectAsStateWithLifecycle(initialValue = 0)
+        val trashItemCount by koinInject<TrashRepository>()
+            .observeTrash().map { it.size }.collectAsStateWithLifecycle(initialValue = 0)
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -298,13 +311,17 @@ private fun MainScaffold(
                     currentDestination?.hasRoute(destination.route::class) == true
                 },
                 trashSelected = currentDestination?.hasRoute<Route.Trash>() == true,
+                transfersSelected = currentDestination?.hasRoute<Route.Transfers>() == true,
                 collapsed = sidebarCollapsed,
                 onToggleCollapsed = {
                     sidebarCollapsed = !sidebarCollapsed
                     platformCapabilities.saveNavigationSidebarCollapsed(sidebarCollapsed)
                 },
                 onNavigate = { navigateTopLevel(navController, it) },
-                onOpenTrash = { navController.navigateOnce(Route.Trash) }
+                onOpenTrash = { navController.navigateOnce(Route.Trash) },
+                onOpenTransfers = { navController.navigateOnce(Route.Transfers) },
+                activeTransferCount = activeTransferCount,
+                trashItemCount = trashItemCount
             )
             AppNavHost(
                 navController = navController,
@@ -388,18 +405,40 @@ private fun MainScaffold(
     }
 }
 
+@Composable
+private fun SidebarCountBadge(count: Int, modifier: Modifier = Modifier) {
+    if (count <= 0) return
+    Surface(
+        modifier = modifier.defaultMinSize(minWidth = 18.dp, minHeight = 18.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primaryContainer
+    ) {
+        Text(
+            text = if (count > 99) "99+" else count.toString(),
+            modifier = Modifier.padding(horizontal = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            maxLines = 1
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DesktopNavigationSidebar(
+internal fun DesktopNavigationSidebar(
     selectedDestination: TopLevelDestination?,
     trashSelected: Boolean,
+    transfersSelected: Boolean,
     collapsed: Boolean,
     onToggleCollapsed: () -> Unit,
     onNavigate: (TopLevelDestination) -> Unit,
-    onOpenTrash: () -> Unit
+    onOpenTrash: () -> Unit,
+    onOpenTransfers: () -> Unit,
+    activeTransferCount: Int = 0,
+    trashItemCount: Int = 0
 ) {
     val sidebarWidth by animateDpAsState(
-        targetValue = if (collapsed) 76.dp else 232.dp,
+        targetValue = if (collapsed) 76.dp else 248.dp,
         animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow),
         label = "desktopSidebarWidth"
     )
@@ -421,12 +460,9 @@ private fun DesktopNavigationSidebar(
                 horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.SpaceBetween
             ) {
                 if (!collapsed) {
-                    Text(
-                        text = "TeleDrive",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(start = 12.dp)
-                    )
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("TeleDrive", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                    }
                 }
                 IconButton(onClick = onToggleCollapsed, modifier = Modifier.size(44.dp)) {
                     Icon(
@@ -440,7 +476,7 @@ private fun DesktopNavigationSidebar(
             }
             if (!collapsed) {
                 Text(
-                    text = "BIBLIOTECA",
+                    text = stringResource(Res.string.redesign_library),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
@@ -486,7 +522,52 @@ private fun DesktopNavigationSidebar(
                 }
                 Spacer(Modifier.height(4.dp))
             }
-            val trashLabel = "Lixeira"
+            val transfersLabel = stringResource(Res.string.transfers)
+            Surface(
+                onClick = { if (!transfersSelected) onOpenTransfers() },
+                color = if (transfersSelected) MaterialTheme.colorScheme.secondaryContainer
+                else MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = if (collapsed) 0.dp else 12.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.spacedBy(12.dp)
+                ) {
+                    if (collapsed) {
+                        Box(Modifier.size(24.dp)) {
+                            Icon(
+                                Icons.Filled.SwapVert,
+                        contentDescription = transfersLabel,
+                                tint = if (transfersSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                            SidebarCountBadge(
+                                activeTransferCount,
+                                Modifier.align(Alignment.TopEnd).offset(x = 6.dp, y = (-4).dp)
+                            )
+                        }
+                    } else {
+                        Icon(
+                            Icons.Filled.SwapVert,
+                            contentDescription = null,
+                            tint = if (transfersSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (!collapsed) {
+                        Text(
+                            transfersLabel,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (transfersSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        SidebarCountBadge(activeTransferCount)
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            val trashLabel = stringResource(Res.string.trash)
             Surface(
                 onClick = { if (!trashSelected) onOpenTrash() },
                 color = if (trashSelected) MaterialTheme.colorScheme.secondaryContainer
@@ -503,19 +584,37 @@ private fun DesktopNavigationSidebar(
                     horizontalArrangement = if (collapsed) Arrangement.Center
                     else Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        Icons.Filled.DeleteOutline,
-                        contentDescription = trashLabel.takeIf { collapsed },
-                        tint = if (trashSelected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (collapsed) {
+                        Box(Modifier.size(24.dp)) {
+                            Icon(
+                                Icons.Filled.DeleteOutline,
+                                contentDescription = trashLabel,
+                                tint = if (trashSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                            SidebarCountBadge(
+                                trashItemCount,
+                                Modifier.align(Alignment.TopEnd).offset(x = 6.dp, y = (-4).dp)
+                            )
+                        }
+                    } else {
+                        Icon(
+                            Icons.Filled.DeleteOutline,
+                            contentDescription = null,
+                            tint = if (trashSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     if (!collapsed) {
                         Text(
                             text = trashLabel,
+                            modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.labelLarge,
                             color = if (trashSelected) MaterialTheme.colorScheme.onSecondaryContainer
                             else MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        SidebarCountBadge(trashItemCount)
                     }
                 }
             }
@@ -561,14 +660,6 @@ private fun DesktopNavigationSidebar(
                 }
             }
             Spacer(Modifier.height(8.dp))
-            if (!collapsed) {
-                Text(
-                    text = "TELEGRAM DRIVE",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
-                )
-            }
         }
     }
 }

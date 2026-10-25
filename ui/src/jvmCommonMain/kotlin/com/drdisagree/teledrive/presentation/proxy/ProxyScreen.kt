@@ -69,7 +69,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
-import androidx.compose.material3.TopAppBar
+import com.drdisagree.teledrive.presentation.components.WorkspaceTopAppBar as TopAppBar
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue

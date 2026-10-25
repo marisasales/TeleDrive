@@ -18,16 +18,16 @@ fun TeleDriveTheme(
         ?: if (darkTheme) BlueDarkColorScheme else BlueLightColorScheme
     val colorScheme = if (desktopStyle) {
         if (darkTheme) baseColorScheme.copy(
-            background = Color(0xFF11151B),
-            surface = Color(0xFF11151B),
-            surfaceContainerLowest = Color(0xFF151A21),
-            surfaceContainerLow = Color(0xFF191F27),
-            surfaceContainer = Color(0xFF1D242D),
-            surfaceContainerHigh = Color(0xFF252D37),
-            surfaceContainerHighest = Color(0xFF2C3540)
+            background = Color(0xFF0D1117),
+            surface = Color(0xFF0D1117),
+            surfaceContainerLowest = Color(0xFF10161E),
+            surfaceContainerLow = Color(0xFF151C26),
+            surfaceContainer = Color(0xFF1B2430),
+            surfaceContainerHigh = Color(0xFF243040),
+            surfaceContainerHighest = Color(0xFF303E50)
         ) else baseColorScheme.copy(
-            background = Color(0xFFF5F7FA),
-            surface = Color(0xFFF5F7FA),
+            background = Color(0xFFF3F6FB),
+            surface = Color(0xFFF3F6FB),
             surfaceContainerLowest = Color(0xFFFFFFFF),
             surfaceContainerLow = Color(0xFFF9FAFC),
             surfaceContainer = Color(0xFFF0F3F7),

@@ -2,6 +2,10 @@ package com.drdisagree.teledrive.presentation.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -54,13 +58,16 @@ fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(56.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(16.dp))
+        Box(
+            modifier = Modifier.size(80.dp).background(
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                RoundedCornerShape(24.dp)
+            ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.height(24.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
@@ -70,6 +77,7 @@ fun EmptyState(
             Spacer(Modifier.height(8.dp))
             Text(
                 text = it,
+                modifier = Modifier.widthIn(max = 420.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -100,6 +108,7 @@ fun ErrorState(
     ) {
         Text(
             text = message,
+            modifier = Modifier.widthIn(max = 420.dp),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center

@@ -2,7 +2,9 @@ package com.drdisagree.teledrive.presentation.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,13 +25,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.drdisagree.teledrive.presentation.components.WorkspacePanel
 import com.drdisagree.teledrive.presentation.components.liftedTopAppBarColors
 import com.drdisagree.teledrive.presentation.components.rememberToolbarLift
 import com.drdisagree.teledrive.presentation.navigation.LocalBottomBarInset
@@ -39,6 +40,7 @@ import com.drdisagree.teledrive.resources.Res
 import com.drdisagree.teledrive.resources.common_back
 import com.drdisagree.teledrive.resources.settings
 import org.jetbrains.compose.resources.stringResource
+import com.drdisagree.teledrive.presentation.components.WorkspaceTopAppBar as TopAppBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,11 +81,10 @@ fun SettingsScreen(
                 if (!capabilities.supportsAutoBackup) add(SettingsSectionType.BACKUP)
                 if (!capabilities.requiresPermissions) add(SettingsSectionType.PERMISSIONS)
             }
-            SettingsGroup {
-                SettingsSectionType.entries.filterNot { it in hiddenSections }.forEach { section ->
-                    add { SectionRow(section = section, onClick = { onOpenSection(section) }) }
-                }
-            }
+            SettingsSectionsGrid(
+                sections = SettingsSectionType.entries.filterNot { it in hiddenSections },
+                onOpenSection = onOpenSection
+            )
             Spacer(
                 Modifier.height(
                     24.dp + padding.calculateBottomPadding() + LocalBottomBarInset.current
@@ -94,12 +95,34 @@ fun SettingsScreen(
 }
 
 @Composable
+internal fun SettingsSectionsGrid(sections: List<SettingsSectionType>, onOpenSection: (SettingsSectionType) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val columns = if (maxWidth >= 840.dp) 2 else 1
+        Column(
+            modifier = Modifier.padding(horizontal = if (columns == 2) 32.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            sections.chunked(columns).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEach { section ->
+                        WorkspacePanel(Modifier.weight(1f)) {
+                            SectionRow(section = section, onClick = { onOpenSection(section) })
+                        }
+                    }
+                    if (row.size < columns) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SectionRow(section: SettingsSectionType, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 20.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -107,7 +130,7 @@ private fun SectionRow(section: SettingsSectionType, onClick: () -> Unit) {
                 .size(40.dp)
                 .background(
                     color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = CircleShape
+                    shape = MaterialTheme.shapes.medium
                 ),
             contentAlignment = Alignment.Center
         ) {
