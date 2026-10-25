@@ -71,7 +71,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.TopAppBar
+import com.drdisagree.teledrive.presentation.components.WorkspaceTopAppBar as TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -503,8 +503,8 @@ fun GalleryScreen(
                         }
                     },
                     actions = {
-                        if (state.isAlbumView || state.tab != GalleryTab.ALBUMS) {
-                            var showSortMenu by remember { mutableStateOf(false) }
+                    if (state.isAlbumView || state.tab != GalleryTab.ALBUMS) {
+                        var showSortMenu by remember { mutableStateOf(false) }
                             IconButton(onClick = { showSortMenu = true }) {
                                 Icon(
                                     Icons.AutoMirrored.Filled.Sort,

@@ -16,6 +16,7 @@ import com.drdisagree.teledrive.domain.model.DriveFile
 import com.drdisagree.teledrive.domain.model.DriveFolder
 import com.drdisagree.teledrive.domain.model.FileQuerySpec
 import com.drdisagree.teledrive.domain.model.FileSortField
+import com.drdisagree.teledrive.domain.model.ViewMode
 import com.drdisagree.teledrive.domain.model.SortDirection
 import com.drdisagree.teledrive.domain.model.TelegramImportChat
 import com.drdisagree.teledrive.core.telegram.RemoteDocument
@@ -312,6 +313,8 @@ class FilesViewModel(
 
     fun setSort(field: FileSortField, direction: SortDirection) =
         updatePrefs { it.copy(sortField = field, sortDirection = direction) }
+
+    fun setViewMode(mode: ViewMode) = updatePrefs { it.copy(viewMode = mode) }
 
     suspend fun createFolderIn(parentId: String?, name: String): Boolean =
         when (val result = fileRepository.createFolder(parentId, name)) {

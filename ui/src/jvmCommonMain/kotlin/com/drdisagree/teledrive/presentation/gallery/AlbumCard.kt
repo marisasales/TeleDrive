@@ -1,6 +1,7 @@
 package com.drdisagree.teledrive.presentation.gallery
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,13 +43,14 @@ fun AlbumCard(
         modifier = modifier
             .clip(MaterialTheme.shapes.large)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f), MaterialTheme.shapes.large)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(6.dp)
+            .padding(8.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f)
+                .aspectRatio(1.3f)
                 .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh),
             contentAlignment = Alignment.Center
@@ -70,7 +72,7 @@ fun AlbumCard(
                 )
             }
         }
-        Column(modifier = Modifier.padding(horizontal = 2.dp, vertical = 6.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp)) {
             Text(
                 text = albumName,
                 style = MaterialTheme.typography.bodyMedium,
