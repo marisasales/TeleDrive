@@ -6,7 +6,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.isSpecified
 
-private const val SCALE = 0.9f
+private const val SCALE = 1f
 
 private fun TextUnit.scaled(): TextUnit = if (isSpecified) this * SCALE else this
 

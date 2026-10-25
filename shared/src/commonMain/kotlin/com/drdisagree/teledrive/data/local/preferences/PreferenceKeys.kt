@@ -37,6 +37,7 @@ object PreferenceKeys {
     val THEME = stringPreferencesKey("theme")
     val LANGUAGE = stringPreferencesKey("language")
     val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+    val USE_24_HOUR_CLOCK = booleanPreferencesKey("use_24_hour_clock")
     val VIEW_MODE = stringPreferencesKey("view_mode")
     val DESKTOP_CLICK_TO_SELECT = booleanPreferencesKey("desktop_click_to_select")
     val GRID_SIZE = intPreferencesKey("grid_size")

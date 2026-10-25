@@ -103,6 +103,7 @@ class SettingsRepositoryImpl(
             theme = enumOrDefault(this[PreferenceKeys.THEME], defaults.theme),
             language = AppLanguage.fromCode(this[PreferenceKeys.LANGUAGE]),
             dynamicColor = this[PreferenceKeys.DYNAMIC_COLOR] ?: defaults.dynamicColor,
+            use24HourClock = this[PreferenceKeys.USE_24_HOUR_CLOCK] ?: defaults.use24HourClock,
             viewMode = enumOrDefault(this[PreferenceKeys.VIEW_MODE], defaults.viewMode),
             desktopClickToSelect = this[PreferenceKeys.DESKTOP_CLICK_TO_SELECT]
                 ?: defaults.desktopClickToSelect,
@@ -198,6 +199,7 @@ class SettingsRepositoryImpl(
         this[PreferenceKeys.THEME] = prefs.theme.name
         this[PreferenceKeys.LANGUAGE] = prefs.language.code
         this[PreferenceKeys.DYNAMIC_COLOR] = prefs.dynamicColor
+        this[PreferenceKeys.USE_24_HOUR_CLOCK] = prefs.use24HourClock
         this[PreferenceKeys.VIEW_MODE] = prefs.viewMode.name
         this[PreferenceKeys.DESKTOP_CLICK_TO_SELECT] = prefs.desktopClickToSelect
         if (prefs.folderColors.isEmpty()) {

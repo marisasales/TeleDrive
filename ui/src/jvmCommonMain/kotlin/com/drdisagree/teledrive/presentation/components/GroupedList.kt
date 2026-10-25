@@ -60,12 +60,12 @@ fun GroupedList(
                 Column {
                     Surface(
                         shape = shape,
-                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         item.content()
                     }
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(1.dp))
                 }
             }
         }
@@ -96,5 +96,5 @@ private fun animateShapeCorners(isFirst: Boolean, isLast: Boolean): State<Shape>
     }
 }
 
-private val OUTER_CORNER = 24.dp
-private val INNER_CORNER = 6.dp
+private val OUTER_CORNER = 16.dp
+private val INNER_CORNER = 2.dp

@@ -28,6 +28,7 @@ data class UserPreferences(
     val theme: AppTheme = AppTheme.SYSTEM,
     val language: AppLanguage = AppLanguage.SYSTEM,
     val dynamicColor: Boolean = true,
+    val use24HourClock: Boolean = true,
     val viewMode: ViewMode = ViewMode.GRID,
     val gridSize: Int = 3,
     val galleryViewMode: ViewMode = ViewMode.GRID,
