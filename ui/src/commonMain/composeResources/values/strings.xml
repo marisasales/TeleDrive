@@ -1,4 +1,18 @@
 <resources>
+    <string name="home_greeting">Hello</string>
+    <string name="home_greeting_named">Hello, %1$s</string>
+    <string name="home_greeting_dawn">Good early morning, %1$s</string>
+    <string name="home_greeting_morning">Good morning, %1$s</string>
+    <string name="home_greeting_afternoon">Good afternoon, %1$s</string>
+    <string name="home_greeting_evening">Good evening, %1$s</string>
+    <string name="settings_clock_format">Clock format</string>
+    <string name="settings_clock_24h">24-hour clock</string>
+    <string name="settings_clock_12h">12-hour clock (AM/PM)</string>
+    <string name="redesign_library">Library</string>
+    <string name="redesign_transfers">Active transfers</string>
+    <string name="redesign_identity">Open source · Powered by Telegram</string>
+    <string name="redesign_overview">Your cloud, organized.</string>
+    <string name="redesign_overview_detail">Files, memories and backups in one place. No storage quota.</string>
     <!-- App-wide -->
     <string name="app_name">TeleDrive</string>
     <string name="app_backed_up">Backed up</string>
@@ -516,6 +530,10 @@
 
     <!-- Trash -->
     <string name="trash">Trash</string>
+    <string name="trash_restore_selected_title">Restore selected items?</string>
+    <string name="trash_restore_selected_message">The selected items will be returned to their original locations.</string>
+    <string name="trash_restore_all_title">Restore all items?</string>
+    <string name="trash_restore_all_message">Every item in Trash will be returned to its original location.</string>
     <string name="home_trash_summary">Items: %1$d · %2$s</string>
     <string name="trash_total_size">Total size: %1$s</string>
     <string name="trash_auto_clear_after_days">Items are deleted permanently after %1$d days.</string>
@@ -716,6 +734,8 @@
     <string name="folder_color_rose">Rose</string>
     <string name="folder_color_slate">Slate</string>
     <string name="settings_grid_view">Grid view in files</string>
+    <string name="view_mode_grid">Grid view</string>
+    <string name="view_mode_list">List view</string>
     <string name="settings_hidden_shortcut">Hidden shortcut</string>
     <string name="settings_recent_files">Recent files</string>
     <string name="settings_recent_files_subtitle">Shows recently added files on the home screen</string>

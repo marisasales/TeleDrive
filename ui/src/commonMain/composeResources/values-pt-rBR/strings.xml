@@ -1,4 +1,18 @@
 <resources>
+    <string name="home_greeting">Olá</string>
+    <string name="home_greeting_named">Olá, %1$s</string>
+    <string name="home_greeting_dawn">Boa madrugada, %1$s</string>
+    <string name="home_greeting_morning">Bom dia, %1$s</string>
+    <string name="home_greeting_afternoon">Boa tarde, %1$s</string>
+    <string name="home_greeting_evening">Boa noite, %1$s</string>
+    <string name="settings_clock_format">Formato do relógio</string>
+    <string name="settings_clock_24h">24 horas</string>
+    <string name="settings_clock_12h">12 horas (AM/PM)</string>
+    <string name="redesign_library">Biblioteca</string>
+    <string name="redesign_transfers">Transferências ativas</string>
+    <string name="redesign_identity">Código aberto · Via Telegram</string>
+    <string name="redesign_overview">Sua nuvem, organizada.</string>
+    <string name="redesign_overview_detail">Arquivos, memórias e backups em um só lugar. Sem cota de armazenamento.</string>
     <!-- App-wide -->
     <string name="app_name">TeleDrive</string>
     <string name="app_backed_up">Salvo em backup</string>
@@ -516,6 +530,10 @@
 
     <!-- Trash -->
     <string name="trash">Lixeira</string>
+    <string name="trash_restore_selected_title">Restaurar itens selecionados?</string>
+    <string name="trash_restore_selected_message">Os itens selecionados voltarão para os locais de origem.</string>
+    <string name="trash_restore_all_title">Restaurar todos os itens?</string>
+    <string name="trash_restore_all_message">Todos os itens da lixeira voltarão para os locais de origem.</string>
     <string name="home_trash_summary">Itens: %1$d · %2$s</string>
     <string name="trash_total_size">Tamanho total: %1$s</string>
     <string name="trash_auto_clear_after_days">Os itens são excluídos permanentemente após %1$d dias.</string>
@@ -716,6 +734,8 @@
     <string name="folder_color_rose">Rosa</string>
     <string name="folder_color_slate">Cinza-azulado</string>
     <string name="settings_grid_view">Visualização em grade nos arquivos</string>
+    <string name="view_mode_grid">Visualização em grade</string>
+    <string name="view_mode_list">Visualização em lista</string>
     <string name="settings_hidden_shortcut">Atalho para Ocultos</string>
     <string name="settings_recent_files">Arquivos recentes</string>
     <string name="settings_recent_files_subtitle">Exibe os arquivos adicionados recentemente na tela inicial</string>

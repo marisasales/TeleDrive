@@ -1,4 +1,18 @@
 <resources>
+    <string name="home_greeting">Здравствуйте</string>
+    <string name="home_greeting_named">Здравствуйте, %1$s</string>
+    <string name="home_greeting_dawn">Доброй ночи, %1$s</string>
+    <string name="home_greeting_morning">Доброе утро, %1$s</string>
+    <string name="home_greeting_afternoon">Добрый день, %1$s</string>
+    <string name="home_greeting_evening">Добрый вечер, %1$s</string>
+    <string name="settings_clock_format">Формат времени</string>
+    <string name="settings_clock_24h">24 часа</string>
+    <string name="settings_clock_12h">12 часов (AM/PM)</string>
+    <string name="redesign_library">Библиотека</string>
+    <string name="redesign_transfers">Активные передачи</string>
+    <string name="redesign_identity">Открытый код · На базе Telegram</string>
+    <string name="redesign_overview">Ваше облако в порядке.</string>
+    <string name="redesign_overview_detail">Файлы, воспоминания и резервные копии в одном месте. Без квоты хранения.</string>
     <!-- App-wide -->
     <string name="app_name">TeleDrive</string>
     <string name="app_backed_up">Загружено</string>
@@ -540,6 +554,10 @@
 
     <!-- Trash -->
     <string name="trash">Корзина</string>
+    <string name="trash_restore_selected_title">Восстановить выбранные элементы?</string>
+    <string name="trash_restore_selected_message">Выбранные элементы будут возвращены в исходные места.</string>
+    <string name="trash_restore_all_title">Восстановить все элементы?</string>
+    <string name="trash_restore_all_message">Все элементы корзины будут возвращены в исходные места.</string>
     <string name="home_trash_summary">Элементы: %1$d · %2$s</string>
     <string name="trash_total_size">Общий размер: %1$s</string>
     <string name="trash_auto_clear_after_days">Объекты удаляются навсегда через %1$d дн.</string>
@@ -740,6 +758,8 @@
     <string name="folder_color_rose">Розовый</string>
     <string name="folder_color_slate">Серо-синий</string>
     <string name="settings_grid_view">Вид сеткой в файлах</string>
+    <string name="view_mode_grid">Вид сеткой</string>
+    <string name="view_mode_list">Вид списком</string>
     <string name="settings_hidden_shortcut">Ярлык скрытого</string>
     <string name="settings_recent_files">Недавние файлы</string>
     <string name="settings_recent_files_subtitle">Отображать недавние файлы на главном экране</string>

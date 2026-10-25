@@ -1,4 +1,18 @@
 <resources>
+    <string name="home_greeting">你好</string>
+    <string name="home_greeting_named">你好，%1$s</string>
+    <string name="home_greeting_dawn">凌晨好，%1$s</string>
+    <string name="home_greeting_morning">早上好，%1$s</string>
+    <string name="home_greeting_afternoon">下午好，%1$s</string>
+    <string name="home_greeting_evening">晚上好，%1$s</string>
+    <string name="settings_clock_format">时间格式</string>
+    <string name="settings_clock_24h">24 小时制</string>
+    <string name="settings_clock_12h">12 小时制（AM/PM）</string>
+    <string name="redesign_library">资料库</string>
+    <string name="redesign_transfers">进行中的传输</string>
+    <string name="redesign_identity">开源 · 基于 Telegram</string>
+    <string name="redesign_overview">井然有序的云空间。</string>
+    <string name="redesign_overview_detail">文件、回忆与备份集中管理，不设存储配额。</string>
     <!-- App-wide -->
     <string name="app_name">TeleDrive</string>
     <string name="app_backed_up">已备份</string>
@@ -504,6 +518,10 @@
 
     <!-- Trash -->
     <string name="trash">回收站</string>
+    <string name="trash_restore_selected_title">恢复所选项目？</string>
+    <string name="trash_restore_selected_message">所选项目将恢复到原来的位置。</string>
+    <string name="trash_restore_all_title">恢复所有项目？</string>
+    <string name="trash_restore_all_message">回收站中的所有项目都将恢复到原来的位置。</string>
     <string name="home_trash_summary">项目：%1$d · %2$s</string>
     <string name="trash_total_size">总大小：%1$s</string>
     <string name="trash_auto_clear_after_days">项目将在 %1$d 天后永久删除。</string>
@@ -704,6 +722,8 @@
     <string name="folder_color_rose">玫红色</string>
     <string name="folder_color_slate">灰蓝色</string>
     <string name="settings_grid_view">文件使用网格视图</string>
+    <string name="view_mode_grid">网格视图</string>
+    <string name="view_mode_list">列表视图</string>
     <string name="settings_hidden_shortcut">已隐藏快捷入口</string>
     <string name="settings_recent_files">最近文件</string>
     <string name="settings_recent_files_subtitle">在首页显示最近添加的文件</string>
