@@ -24,6 +24,7 @@ internal fun formatHomeDateTime(now: ZonedDateTime, personalization: HomePersona
     val locale = when (personalization.language) {
         AppLanguage.SYSTEM -> Locale.getDefault()
         AppLanguage.ENGLISH -> Locale.ENGLISH
+        AppLanguage.SPANISH -> Locale.forLanguageTag("es-ES")
         AppLanguage.RUSSIAN -> Locale.forLanguageTag("ru-RU")
         AppLanguage.PORTUGUESE_BR -> Locale.forLanguageTag("pt-BR")
         AppLanguage.CHINESE_SIMPLIFIED -> Locale.forLanguageTag("zh-CN")
