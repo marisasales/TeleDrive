@@ -24,6 +24,7 @@ import com.drdisagree.teledrive.core.telegram.RemoteDocumentPage
 import com.drdisagree.teledrive.core.telegram.TelegramDownloadEvent
 import com.drdisagree.teledrive.core.telegram.TelegramException
 import com.drdisagree.teledrive.data.local.FileQueryBuilder
+import com.drdisagree.teledrive.data.local.OffsetRefreshPagingSource
 import com.drdisagree.teledrive.data.local.dao.FileDao
 import com.drdisagree.teledrive.data.local.dao.FolderDao
 import com.drdisagree.teledrive.data.local.entity.FileEntity
@@ -97,7 +98,9 @@ class FileRepositoryImpl(
                     enablePlaceholders = false
                 ),
                 pagingSourceFactory = {
-                    fileDao.pagingSource(FileQueryBuilder.build(spec.copy(chatId = chatId)))
+                    OffsetRefreshPagingSource(
+                        fileDao.pagingSource(FileQueryBuilder.build(spec.copy(chatId = chatId)))
+                    )
                 }
             ).flow.map { paging -> paging.map { it.toDomain() } }
         }
@@ -648,7 +651,7 @@ class FileRepositoryImpl(
         fileDao.byLocalPath(localPath, activeChannel.id())?.takeIf { it.trashedAt == null }?.let {
             return AppResult.Success(it.toDomain())
         }
-        reviveTrashedCopy(localPath, folderId)?.let { return AppResult.Success(it) }
+        reviveTrashedCopy(localPath) { folderId }?.let { return AppResult.Success(it) }
 
         val name = displayName ?: source.name
         val mime = MimeTypes.fromFileName(name)
@@ -793,7 +796,10 @@ class FileRepositoryImpl(
         return candidates.firstOrNull { it.contentHash == localHash }?.toDomain()
     }
 
-    override suspend fun reviveTrashedCopy(localPath: String, folderId: String?): DriveFile? {
+    override suspend fun reviveTrashedCopy(
+        localPath: String,
+        folderId: suspend () -> String?
+    ): DriveFile? {
         val source = File(localPath)
         if (!source.exists() || !source.isFile) return null
 
@@ -809,7 +815,7 @@ class FileRepositoryImpl(
 
         val now = System.currentTimeMillis()
         fileDao.restoreFromTrash(listOf(match.id))
-        fileDao.move(listOf(match.id), folderId, now)
+        fileDao.move(listOf(match.id), folderId(), now)
         fileDao.setLocalPath(match.id, source.absolutePath)
         markFilesDirty(listOf(match.id))
         return fileDao.byId(match.id)?.toDomain()

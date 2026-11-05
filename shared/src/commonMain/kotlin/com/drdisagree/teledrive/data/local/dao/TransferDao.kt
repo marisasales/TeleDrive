@@ -90,6 +90,12 @@ interface TransferDao {
     )
     suspend fun nextQueuedExcept(type: TransferType, limit: Int): List<TransferEntity>
 
+    @Query(
+        """SELECT * FROM transfers WHERE state = 'QUEUED' AND type IN (:types)
+           ORDER BY priority DESC, createdAt ASC LIMIT :limit"""
+    )
+    suspend fun nextQueuedOf(types: List<TransferType>, limit: Int): List<TransferEntity>
+
     @Query("SELECT EXISTS(SELECT 1 FROM transfers WHERE state = 'QUEUED' AND type = :type)")
     suspend fun hasQueued(type: TransferType): Boolean
 
@@ -101,6 +107,9 @@ interface TransferDao {
            WHERE type = 'DOWNLOAD' AND fileId IS NOT NULL AND state IN ('QUEUED', 'RUNNING')"""
     )
     fun observeActiveDownloads(): Flow<List<TransferEntity>>
+
+    @Query("UPDATE transfers SET localPath = :localPath WHERE id = :id")
+    suspend fun setLocalPath(id: String, localPath: String?)
 
     @Query("UPDATE transfers SET stage = :stage, updatedAt = :updatedAt WHERE id = :id")
     suspend fun setStage(id: String, stage: TransferStage?, updatedAt: Long)

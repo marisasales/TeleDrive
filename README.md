@@ -1,3 +1,5 @@
+<p align="right">English · <a href="README.es.md">Español</a></p>
+
 <div align="center">
 
 <img src="website/assets/icon-192.png" width="120" alt="TeleDrive icon">

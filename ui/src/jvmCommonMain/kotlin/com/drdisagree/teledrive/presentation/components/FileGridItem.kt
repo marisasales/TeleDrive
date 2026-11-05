@@ -86,6 +86,7 @@ fun FileGridItem(
                 onDoubleClick = if (isDesktop && clickToSelect) onDoubleClick else null,
                 onLongClick = onLongClick
             )
+            .then(if (compact) Modifier.semantics { tileRole() } else Modifier)
     ) {
         Box {
             FileThumbnail(

@@ -591,8 +591,19 @@ class TdLibTelegramClient(
 
     override suspend fun chatExists(chatId: Long): Boolean? = try {
         awaitAuthorized()
-        send<TdApi.Chat>(TdApi.GetChat(chatId))
-        true
+        val chat = send<TdApi.Chat>(TdApi.GetChat(chatId))
+        val type = chat.type as? TdApi.ChatTypeSupergroup
+        if (type == null) {
+            true
+        } else {
+            val status = send<TdApi.Supergroup>(TdApi.GetSupergroup(type.supergroupId)).status
+            if (status is TdApi.ChatMemberStatusLeft || status is TdApi.ChatMemberStatusBanned) {
+                false
+            } else {
+                send<TdApi.SupergroupFullInfo>(TdApi.GetSupergroupFullInfo(type.supergroupId))
+                true
+            }
+        }
     } catch (e: TelegramException) {
         if (e.code == 400) false else null
     }
@@ -1149,6 +1160,10 @@ class TdLibTelegramClient(
             return
         }
         send(TdApi.OptimizeStorage(0, 0, 0, 0, null, null, null, false, 0))
+    }
+
+    override suspend fun deleteLocalCopy(remoteFileId: String) {
+        send(TdApi.DeleteFile(remoteFile(remoteFileId).id))
     }
 
     override fun fileUpdates(fileId: Int): Flow<TelegramFileInfo> =
