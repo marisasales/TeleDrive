@@ -721,8 +721,15 @@
     <string name="settings_compact_layout">Compact layout</string>
     <string name="settings_dynamic_color">Dynamic color</string>
     <string name="settings_gallery_grid_columns">Gallery grid columns</string>
+    <string name="settings_gallery_tile_size">Gallery tile size</string>
+    <string name="settings_gallery_tile_size_subtitle">Choose the fixed size of photos and videos in the gallery grid</string>
     <string name="settings_gallery_grid_view">Grid view in gallery</string>
     <string name="settings_grid_columns">Files grid columns</string>
+    <string name="settings_file_tile_size">File tile size</string>
+    <string name="settings_file_tile_size_subtitle">Applies to files and media in the Files grid</string>
+    <string name="file_tile_size_large">Large</string>
+    <string name="file_tile_size_medium">Medium</string>
+    <string name="file_tile_size_small">Small</string>
     <string name="settings_desktop_click_mode">Desktop click behavior</string>
     <string name="settings_desktop_click_open">Single-click opens; selection boxes stay visible</string>
     <string name="settings_desktop_click_select">Single-click selects; double-click opens</string>

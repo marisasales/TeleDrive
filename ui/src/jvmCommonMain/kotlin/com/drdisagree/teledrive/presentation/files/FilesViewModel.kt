@@ -15,6 +15,7 @@ import com.drdisagree.teledrive.core.files.PendingShare
 import com.drdisagree.teledrive.domain.model.DriveFile
 import com.drdisagree.teledrive.domain.model.DriveFolder
 import com.drdisagree.teledrive.domain.model.FileQuerySpec
+import com.drdisagree.teledrive.domain.model.FileTileSize
 import com.drdisagree.teledrive.domain.model.FileSortField
 import com.drdisagree.teledrive.domain.model.ViewMode
 import com.drdisagree.teledrive.domain.model.SortDirection
@@ -31,10 +32,7 @@ import com.drdisagree.teledrive.domain.usecase.MakeAvailableOfflineUseCase
 import com.drdisagree.teledrive.presentation.common.ListPosition
 import com.drdisagree.teledrive.presentation.common.UiText
 import com.drdisagree.teledrive.presentation.common.toUiText
-import com.drdisagree.teledrive.presentation.components.GridZoomLevel
 import com.drdisagree.teledrive.presentation.components.SelectionCapabilities
-import com.drdisagree.teledrive.presentation.components.zoomedIn
-import com.drdisagree.teledrive.presentation.components.zoomedOut
 import com.drdisagree.teledrive.presentation.navigation.Route
 import com.drdisagree.teledrive.resources.Res
 import com.drdisagree.teledrive.resources.files_copied_all
@@ -302,13 +300,26 @@ class FilesViewModel(
         rangeBase = null
     }
 
-    fun zoomIn() = applyZoom(GridZoomLevel::zoomedIn)
+    fun zoomIn() = updatePrefs { prefs ->
+        val nextSize = if (prefs.viewMode == ViewMode.LIST) {
+            FileTileSize.SMALL
+        } else {
+            when (FileTileSize.fromGridSize(prefs.gridSize)) {
+                FileTileSize.SMALL -> FileTileSize.MEDIUM
+                FileTileSize.MEDIUM -> FileTileSize.LARGE
+                FileTileSize.LARGE -> FileTileSize.LARGE
+            }
+        }
+        prefs.copy(viewMode = ViewMode.GRID, gridSize = nextSize.gridSize)
+    }
 
-    fun zoomOut() = applyZoom(GridZoomLevel::zoomedOut)
-
-    private fun applyZoom(transform: (GridZoomLevel) -> GridZoomLevel) = updatePrefs { prefs ->
-        val next = transform(GridZoomLevel(prefs.viewMode, prefs.gridSize))
-        prefs.copy(viewMode = next.viewMode, gridSize = next.gridSize)
+    fun zoomOut() = updatePrefs { prefs ->
+        if (prefs.viewMode == ViewMode.LIST) return@updatePrefs prefs
+        when (FileTileSize.fromGridSize(prefs.gridSize)) {
+            FileTileSize.LARGE -> prefs.copy(gridSize = FileTileSize.MEDIUM.gridSize)
+            FileTileSize.MEDIUM -> prefs.copy(gridSize = FileTileSize.SMALL.gridSize)
+            FileTileSize.SMALL -> prefs.copy(viewMode = ViewMode.LIST)
+        }
     }
 
     fun setSort(field: FileSortField, direction: SortDirection) =

@@ -700,8 +700,15 @@
     <string name="settings_compact_layout">Diseño compacto</string>
     <string name="settings_dynamic_color">Color dinámico</string>
     <string name="settings_gallery_grid_columns">Columnas de la cuadrícula de la galería</string>
+    <string name="settings_gallery_tile_size">Tamaño de los elementos de la galería</string>
+    <string name="settings_gallery_tile_size_subtitle">Elige el tamaño fijo de las fotos y los vídeos en la cuadrícula</string>
     <string name="settings_gallery_grid_view">Vista de cuadrícula en la galería</string>
     <string name="settings_grid_columns">Columnas de la cuadrícula de archivos</string>
+    <string name="settings_file_tile_size">Tamaño de los archivos</string>
+    <string name="settings_file_tile_size_subtitle">Se aplica a archivos y contenido multimedia en la cuadrícula</string>
+    <string name="file_tile_size_large">Grande</string>
+    <string name="file_tile_size_medium">Mediano</string>
+    <string name="file_tile_size_small">Pequeño</string>
     <string name="settings_grid_view">Vista de cuadrícula en Archivos</string>
     <string name="settings_hidden_shortcut">Acceso directo a Ocultos</string>
     <string name="settings_recent_files">Archivos recientes</string>

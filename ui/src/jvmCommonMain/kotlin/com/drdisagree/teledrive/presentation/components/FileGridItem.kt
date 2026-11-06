@@ -54,7 +54,8 @@ fun FileGridItem(
     onDoubleClick: () -> Unit = onClick,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
-    showMetadata: Boolean = false
+    showMetadata: Boolean = false,
+    thumbnailAspectRatio: Float? = null
 ) {
     val isDesktop = LocalPlatformCapabilities.current.isDesktop
     val selectionLabel = "${stringResource(Res.string.common_select)}: ${file.name}"
@@ -94,7 +95,7 @@ fun FileGridItem(
                 contentDescription = if (compact) file.name else null,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(if (showMetadata) 1.45f else 1f)
+                    .aspectRatio(thumbnailAspectRatio ?: if (showMetadata) 1.45f else 1f)
             )
             if (isDesktop && (!clickToSelect || selected)) {
                 Checkbox(

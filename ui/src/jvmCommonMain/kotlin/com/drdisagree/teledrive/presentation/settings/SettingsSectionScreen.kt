@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.drdisagree.teledrive.domain.model.AppLanguage
+import com.drdisagree.teledrive.domain.model.FileTileSize
 import com.drdisagree.teledrive.resources.settings_delete_after_upload
 import com.drdisagree.teledrive.resources.settings_delete_after_upload_summary
 import com.drdisagree.teledrive.resources.Res
@@ -101,6 +102,11 @@ import com.drdisagree.teledrive.resources.settings_compact_layout
 import com.drdisagree.teledrive.resources.settings_confirm_removing_lock
 import com.drdisagree.teledrive.resources.settings_debug_logging
 import com.drdisagree.teledrive.resources.settings_dynamic_color
+import com.drdisagree.teledrive.resources.settings_file_tile_size
+import com.drdisagree.teledrive.resources.settings_file_tile_size_subtitle
+import com.drdisagree.teledrive.resources.file_tile_size_large
+import com.drdisagree.teledrive.resources.file_tile_size_medium
+import com.drdisagree.teledrive.resources.file_tile_size_small
 import com.drdisagree.teledrive.resources.settings_encrypt_thumbnails
 import com.drdisagree.teledrive.resources.settings_encrypt_uploads
 import com.drdisagree.teledrive.resources.settings_encryption_stays_off
@@ -112,8 +118,8 @@ import com.drdisagree.teledrive.resources.settings_files_stay_telegram_channel
 import com.drdisagree.teledrive.resources.settings_folder_unreadable
 import com.drdisagree.teledrive.resources.settings_free_up_space_title
 import com.drdisagree.teledrive.resources.settings_gallery_previews_regenerated_browse
-import com.drdisagree.teledrive.resources.settings_gallery_grid_columns
-import com.drdisagree.teledrive.resources.settings_grid_columns
+import com.drdisagree.teledrive.resources.settings_gallery_tile_size
+import com.drdisagree.teledrive.resources.settings_gallery_tile_size_subtitle
 import com.drdisagree.teledrive.resources.settings_clock_format
 import com.drdisagree.teledrive.resources.settings_clock_24h
 import com.drdisagree.teledrive.resources.settings_clock_12h
@@ -1170,11 +1176,20 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
             )
         }
         add {
-            SettingsSliderRow(
-                title = stringResource(Res.string.settings_grid_columns),
-                value = prefs.gridSize,
-                range = 2..6,
-                onChange = { value -> viewModel.update { it.copy(gridSize = value) } }
+            val fileTileSizes = FileTileSize.entries
+            SettingsSegmentedChoiceRow(
+                title = stringResource(Res.string.settings_file_tile_size),
+                subtitle = stringResource(Res.string.settings_file_tile_size_subtitle),
+                options = listOf(
+                    stringResource(Res.string.file_tile_size_large),
+                    stringResource(Res.string.file_tile_size_medium),
+                    stringResource(Res.string.file_tile_size_small)
+                ),
+                selectedIndex = fileTileSizes.indexOf(FileTileSize.fromGridSize(prefs.gridSize)),
+                onSelect = { index ->
+                    val gridSize = fileTileSizes[index].gridSize
+                    viewModel.update { it.copy(gridSize = gridSize) }
+                }
             )
         }
         add(visible = capabilities.isDesktop) {
@@ -1188,11 +1203,19 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
             )
         }
         add {
-            SettingsSliderRow(
-                title = stringResource(Res.string.settings_gallery_grid_columns),
-                value = prefs.galleryGridSize,
-                range = 2..6,
-                onChange = { value -> viewModel.update { it.copy(galleryGridSize = value) } }
+            val galleryTileSizes = FileTileSize.entries
+            SettingsSegmentedChoiceRow(
+                title = stringResource(Res.string.settings_gallery_tile_size),
+                subtitle = stringResource(Res.string.settings_gallery_tile_size_subtitle),
+                options = listOf(
+                    stringResource(Res.string.file_tile_size_large),
+                    stringResource(Res.string.file_tile_size_medium),
+                    stringResource(Res.string.file_tile_size_small)
+                ),
+                selectedIndex = galleryTileSizes.indexOf(FileTileSize.fromGridSize(prefs.galleryGridSize)),
+                onSelect = { index ->
+                    viewModel.update { it.copy(galleryGridSize = galleryTileSizes[index].gridSize) }
+                }
             )
         }
         add(visible = prefs.viewMode == ViewMode.LIST || prefs.galleryViewMode == ViewMode.LIST) {

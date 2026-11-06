@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,6 +31,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.drdisagree.teledrive.domain.model.DriveFolder
@@ -80,60 +82,89 @@ fun FolderGridItem(
                 onClick = if (isDesktop && clickToSelect) onLongClick else onClick,
                 onDoubleClick = if (isDesktop && clickToSelect) onDoubleClick else null,
                 onLongClick = onLongClick
-        )
+            )
     ) {
         if (isDesktop) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            // Compact vertical card: controls float over the corners so the icon, name and
+            // count keep the whole height instead of leaving a large empty band.
+            Box(Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.height(48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(42.dp),
+                            tint = folderColor ?: MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Text(
+                        text = folder.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = folder.contentsLabel(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                }
                 if (!clickToSelect || selected) {
                     Checkbox(
                         checked = selected,
                         onCheckedChange = { onLongClick() },
-                        modifier = Modifier.semantics {
-                            contentDescription = selectionLabel
-                        }
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(4.dp)
+                            .semantics {
+                                contentDescription = selectionLabel
+                            }
                     )
                 }
-                Icon(
-                    imageVector = Icons.Filled.Folder,
-                    contentDescription = null,
-                    modifier = Modifier.size(30.dp),
-                    tint = folderColor ?: MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = folder.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                if (folder.isFavorite) {
-                    Icon(
-                        imageVector = Icons.Filled.Star,
-                        contentDescription = stringResource(Res.string.common_content_description_favorite),
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.tertiary
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(start = 4.dp, end = 2.dp, top = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (folder.isFavorite) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = stringResource(Res.string.common_content_description_favorite),
+                            modifier = Modifier.size(15.dp),
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    if (folder.isAvailableOffline) {
+                        Icon(
+                            imageVector = Icons.Filled.OfflinePin,
+                            contentDescription = stringResource(
+                                Res.string.common_content_description_available_offline
+                            ),
+                            modifier = Modifier.size(15.dp),
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                        Spacer(Modifier.width(2.dp))
+                    }
+                    FolderColorMenu(
+                        selectedColorKey = folderColorKey,
+                        onColorSelected = onFolderColorSelected
                     )
                 }
-                if (folder.isAvailableOffline) {
-                    Icon(
-                        imageVector = Icons.Filled.OfflinePin,
-                        contentDescription = stringResource(
-                            Res.string.common_content_description_available_offline
-                        ),
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.secondary
-                    )
-                }
-                FolderColorMenu(
-                    selectedColorKey = folderColorKey,
-                    onColorSelected = onFolderColorSelected
-                )
             }
         } else {
             Box(
@@ -147,46 +178,44 @@ fun FolderGridItem(
                     tint = folderColor ?: MaterialTheme.colorScheme.primary
                 )
             }
-        }
-        if (!isDesktop) Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = folder.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (folder.isFavorite) {
+                        Spacer(Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = stringResource(Res.string.common_content_description_favorite),
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                    if (folder.isAvailableOffline) {
+                        Spacer(Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Filled.OfflinePin,
+                            contentDescription = stringResource(
+                                Res.string.common_content_description_available_offline
+                            ),
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
                 Text(
-                    text = folder.name,
-                    style = if (isDesktop) MaterialTheme.typography.titleSmall
-                    else MaterialTheme.typography.bodyMedium,
+                    text = folder.contentsLabel(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    overflow = TextOverflow.Ellipsis
                 )
-                if (folder.isFavorite) {
-                    Spacer(Modifier.width(6.dp))
-                    Icon(
-                        imageVector = Icons.Filled.Star,
-                        contentDescription = stringResource(Res.string.common_content_description_favorite),
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.tertiary
-                    )
-                }
-                if (folder.isAvailableOffline) {
-                    Spacer(Modifier.width(6.dp))
-                    Icon(
-                        imageVector = Icons.Filled.OfflinePin,
-                        contentDescription = stringResource(
-                            Res.string.common_content_description_available_offline
-                        ),
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.secondary
-                    )
-                }
             }
-            Text(
-                text = folder.contentsLabel(),
-                style = if (isDesktop) MaterialTheme.typography.bodyMedium
-                else MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
         }
     }
 }

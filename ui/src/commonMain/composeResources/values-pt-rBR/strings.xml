@@ -721,8 +721,15 @@
     <string name="settings_compact_layout">Layout compacto</string>
     <string name="settings_dynamic_color">Cor dinâmica</string>
     <string name="settings_gallery_grid_columns">Colunas da grade na galeria</string>
+    <string name="settings_gallery_tile_size">Tamanho dos itens da galeria</string>
+    <string name="settings_gallery_tile_size_subtitle">Escolha o tamanho fixo das fotos e vídeos na grade da galeria</string>
     <string name="settings_gallery_grid_view">Visualização em grade na galeria</string>
     <string name="settings_grid_columns">Colunas da grade nos arquivos</string>
+    <string name="settings_file_tile_size">Tamanho dos arquivos</string>
+    <string name="settings_file_tile_size_subtitle">Aplica-se a arquivos e mídias na grade de Arquivos</string>
+    <string name="file_tile_size_large">Grande</string>
+    <string name="file_tile_size_medium">Médio</string>
+    <string name="file_tile_size_small">Pequeno</string>
     <string name="settings_desktop_click_mode">Comportamento de clique no desktop</string>
     <string name="settings_desktop_click_open">Um clique abre; caixas de seleção sempre visíveis</string>
     <string name="settings_desktop_click_select">Um clique seleciona; dois cliques abrem</string>

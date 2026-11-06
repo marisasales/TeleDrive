@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -134,6 +136,7 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.drdisagree.teledrive.domain.model.DriveFile
+import com.drdisagree.teledrive.domain.model.FileTileSize
 import com.drdisagree.teledrive.domain.model.DriveFolder
 import com.drdisagree.teledrive.domain.model.FileSortField
 import com.drdisagree.teledrive.domain.model.SortDirection
@@ -1264,7 +1267,11 @@ private fun FilesContent(
                                     onFolderColorSelected = { colorKey ->
                                         viewModel.setFolderColor(folder.id, colorKey)
                                     },
-                                    modifier = Modifier.fillMaxWidth()
+                                    // Centre the fixed-width card inside the 280.dp master pane.
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .wrapContentWidth(Alignment.CenterHorizontally)
+                                        .widthIn(max = 240.dp)
                                 )
                             }
                         }
@@ -1315,13 +1322,25 @@ private fun FilesGridContent(
     onBack: (() -> Unit)?,
     viewModel: FilesViewModel
 ) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
     val isDesktop = LocalPlatformCapabilities.current.isDesktop
-    val columns = if (state.viewMode == ViewMode.GRID) state.gridSize else 1
-    val gridCells = if (isDesktop && state.viewMode == ViewMode.GRID) {
-        GridCells.Adaptive(minSize = desktopFolderTileMinWidth(state.gridSize))
-    } else {
-        GridCells.Fixed(columns)
-    }
+    val fileTileSize = FileTileSize.fromGridSize(state.gridSize)
+    val gridMode = state.viewMode == ViewMode.GRID
+    val fileWidth = fileTileSize.tileWidthDp.dp
+    val columns = if (gridMode) {
+        ((maxWidth - 24.dp + 10.dp) / (fileWidth + 10.dp)).toInt().coerceAtLeast(1)
+    } else 1
+    // Desktop cards flow like CSS grid: pick how many fit the pane, then spread the
+    // remaining cells across the row so no dead strip is left on the right.
+    val folderColumns = if (gridMode && isDesktop) {
+        ((maxWidth - 24.dp + 10.dp) / (DESKTOP_FOLDER_TARGET_WIDTH + 10.dp))
+            .toInt().coerceAtLeast(1)
+    } else 1
+    val fileColumns = if (gridMode && isDesktop) {
+        ((maxWidth - 24.dp + 10.dp) / (fileWidth + 10.dp)).toInt().coerceAtLeast(1)
+    } else 1
+    val fileSpan = if (gridMode) fileTileSize.fileSpan else 1
+    val gridCells = if (gridMode) GridCells.FixedSize(FILE_GRID_CELL_SIZE) else GridCells.Fixed(1)
     val keyboard = rememberKeyboardCollection(gridState, columns)
     val itemCount = state.folders.size + files.itemCount
     val toggleAt: (Int) -> Unit = { index ->
@@ -1388,7 +1407,7 @@ private fun FilesGridContent(
             .pinchZoom(onZoomIn = viewModel::zoomIn, onZoomOut = viewModel::zoomOut)
             .then(dragSelect),
         contentPadding = padding.add(horizontal = 12.dp, top = 12.dp, bottom = 100.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         val showGridSections = state.viewMode == ViewMode.GRID &&
@@ -1407,9 +1426,17 @@ private fun FilesGridContent(
         items(
             count = state.folders.size,
             key = { "folder-${state.folders[it].id}" },
-            span = {
-                if (state.viewMode == ViewMode.GRID) GridItemSpan(1)
-                else GridItemSpan(maxLineSpan)
+            span = { index ->
+                when {
+                    state.viewMode != ViewMode.GRID -> GridItemSpan(1)
+                    !isDesktop -> GridItemSpan(minOf(MOBILE_FOLDER_SPAN, maxLineSpan))
+                    else -> {
+                        val perRow = folderColumns.coerceIn(1, maxLineSpan)
+                        // Equal width for every folder; leftover cells stay centred instead of
+                        // stretching only the first cards of a row.
+                        GridItemSpan((maxLineSpan / perRow).coerceAtLeast(1))
+                    }
+                }
             }
         ) { index ->
             val folder = state.folders[index]
@@ -1501,7 +1528,19 @@ private fun FilesGridContent(
 
         items(
             count = files.itemCount,
-            key = files.itemKey { "file-${it.id}" }
+            key = files.itemKey { "file-${it.id}" },
+            span = { index ->
+                when {
+                    state.viewMode != ViewMode.GRID -> GridItemSpan(1)
+                    !isDesktop -> GridItemSpan(minOf(fileSpan, maxLineSpan))
+                    else -> {
+                        val perRow = fileColumns.coerceIn(1, maxLineSpan)
+                        // Equal width for every file. Distributing remainder cells per item made
+                        // the first card of each row wider (and taller) than the rest.
+                        GridItemSpan((maxLineSpan / perRow).coerceAtLeast(1))
+                    }
+                }
+            }
         ) { index ->
             val file = files[index] ?: return@items
             val selected = file.id in state.selection
@@ -1522,6 +1561,7 @@ private fun FilesGridContent(
                     file = file,
                     selected = selected,
                     showMetadata = true,
+                    thumbnailAspectRatio = fileTileSize.thumbnailAspectRatio,
                     clickToSelect = isDesktop && state.desktopClickToSelect,
                     onDoubleClick = openFile,
                     onClick = {
@@ -1554,6 +1594,7 @@ private fun FilesGridContent(
                 )
             }
         }
+    }
     }
 }
 
@@ -1633,8 +1674,10 @@ internal fun ShortcutTooltip(
     )
 }
 
-private fun desktopFolderTileMinWidth(gridSize: Int) =
-    (390 - (gridSize - 2) * 40).coerceIn(210, 390).dp
+private val FILE_GRID_CELL_SIZE = 48.dp
+private val DESKTOP_FOLDER_TARGET_WIDTH = 250.dp
+private const val MOBILE_FOLDER_SPAN = 2
+
 @Composable
 internal fun FolderPickerHost(
     title: String,
