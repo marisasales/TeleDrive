@@ -58,6 +58,14 @@ object FileQueryBuilder {
             where.append(" AND category IN (${spec.categories.joinToString(",") { "?" }})")
             args.addAll(spec.categories.map { it.name })
         }
+        if (spec.allowedImageExtensions.isNotEmpty()) {
+            // Videos are untouched; only images must match a decodable extension.
+            val imageFilter = spec.allowedImageExtensions.joinToString(" OR ") {
+                "LOWER(name) LIKE ? ESCAPE '\\'"
+            }
+            where.append(" AND (category != 'IMAGE' OR ($imageFilter))")
+            args.addAll(spec.allowedImageExtensions.map { "%.${escapeLike(it)}" })
+        }
         spec.nameQuery?.takeIf { it.isNotBlank() }?.let {
             where.append(" AND name LIKE ? ESCAPE '\\'")
             args.add("%${escapeLike(it)}%")

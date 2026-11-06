@@ -5,6 +5,8 @@ data class FileQuerySpec(
     val folderId: String? = null,
     val filterByFolder: Boolean = false,
     val categories: List<FileCategory> = emptyList(),
+    /** When set, only image files with one of these extensions are returned. */
+    val allowedImageExtensions: List<String> = emptyList(),
     val nameQuery: String? = null,
     val extension: String? = null,
     val minSizeBytes: Long? = null,

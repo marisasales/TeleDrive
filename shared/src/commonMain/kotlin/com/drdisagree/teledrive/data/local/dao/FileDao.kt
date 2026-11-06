@@ -514,6 +514,8 @@ interface FileDao {
     )
     suspend fun queuedWithoutTransferFileIds(chatId: Long?): List<String>
 
+    // Mirrors ImageFormats.displayableExtensions: a folder only becomes a gallery album when at
+    // least one of its images is decodable, otherwise the album would open empty.
     @Query(
         """SELECT f.folderId AS folderId,
                   fo.name AS name,
@@ -523,6 +525,13 @@ interface FileDao {
                      WHERE c.folderId IS f.folderId
                        AND c.trashedAt IS NULL
                        AND c.category IN ('IMAGE', 'VIDEO')
+                       AND (c.category != 'IMAGE'
+                            OR LOWER(c.name) LIKE '%.jpg'
+                            OR LOWER(c.name) LIKE '%.jpeg'
+                            OR LOWER(c.name) LIKE '%.png'
+                            OR LOWER(c.name) LIKE '%.webp'
+                            OR LOWER(c.name) LIKE '%.gif'
+                            OR LOWER(c.name) LIKE '%.bmp')
                        AND (:showHidden = 1 OR c.isHidden = 0)
                        AND (:showArchived = 1 OR c.isArchived = 0)
                      ORDER BY c.modifiedAt DESC LIMIT 1) AS coverFileId
@@ -530,6 +539,13 @@ interface FileDao {
            LEFT JOIN folders fo ON fo.id = f.folderId
            WHERE f.trashedAt IS NULL AND f.chatId IS :chatId
              AND f.category IN ('IMAGE', 'VIDEO')
+             AND (f.category != 'IMAGE'
+                  OR LOWER(f.name) LIKE '%.jpg'
+                  OR LOWER(f.name) LIKE '%.jpeg'
+                  OR LOWER(f.name) LIKE '%.png'
+                  OR LOWER(f.name) LIKE '%.webp'
+                  OR LOWER(f.name) LIKE '%.gif'
+                  OR LOWER(f.name) LIKE '%.bmp')
              AND (:showHidden = 1 OR f.isHidden = 0)
              AND (:showArchived = 1 OR f.isArchived = 0)
            GROUP BY f.folderId
