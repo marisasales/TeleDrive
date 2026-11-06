@@ -1,6 +1,7 @@
 package com.drdisagree.teledrive.presentation.gallery
 
 import com.drdisagree.teledrive.core.common.AppError
+import com.drdisagree.teledrive.core.files.ImageFormats
 import com.drdisagree.teledrive.presentation.common.UiText
 import com.drdisagree.teledrive.presentation.common.toUiText
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,6 +22,7 @@ import com.drdisagree.teledrive.resources.files_queued_for_download
 import com.drdisagree.teledrive.domain.model.DriveFile
 import com.drdisagree.teledrive.domain.model.FileCategory
 import com.drdisagree.teledrive.domain.model.FileQuerySpec
+import com.drdisagree.teledrive.domain.model.FileTileSize
 import com.drdisagree.teledrive.domain.model.FileSortField
 import com.drdisagree.teledrive.domain.model.MediaAlbum
 import com.drdisagree.teledrive.domain.model.SortDirection
@@ -35,12 +37,9 @@ import com.drdisagree.teledrive.presentation.files.FileClipboard
 import com.drdisagree.teledrive.domain.usecase.MakeAvailableOfflineUseCase
 import com.drdisagree.teledrive.presentation.common.Formatters
 import com.drdisagree.teledrive.presentation.common.ListPosition
-import com.drdisagree.teledrive.presentation.components.GridZoomLevel
 import com.drdisagree.teledrive.presentation.components.MAX_GRID_COLUMNS
 import com.drdisagree.teledrive.presentation.components.MIN_GRID_COLUMNS
 import com.drdisagree.teledrive.presentation.components.SelectionCapabilities
-import com.drdisagree.teledrive.presentation.components.zoomedIn
-import com.drdisagree.teledrive.presentation.components.zoomedOut
 import com.drdisagree.teledrive.presentation.navigation.Route
 import com.drdisagree.teledrive.presentation.preview.PreviewSequence
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -116,6 +115,12 @@ class GalleryViewModel(
                 GalleryTab.PHOTOS -> listOf(FileCategory.IMAGE)
                 GalleryTab.VIDEOS -> listOf(FileCategory.VIDEO)
                 else -> listOf(FileCategory.IMAGE, FileCategory.VIDEO)
+            },
+            // The grid only offers images the app can decode; everything else would be a broken tile.
+            allowedImageExtensions = if (currentTab == GalleryTab.VIDEOS) {
+                emptyList()
+            } else {
+                ImageFormats.displayableExtensions
             },
             showHidden = false,
             showArchived = false,
@@ -246,9 +251,35 @@ class GalleryViewModel(
         }
     }
 
-    fun zoomIn() = applyZoom(GridZoomLevel::zoomedIn)
+    fun zoomIn() {
+        viewModelScope.launch {
+            settingsRepository.update { prefs ->
+                val nextSize = if (prefs.galleryViewMode == ViewMode.LIST) {
+                    FileTileSize.SMALL
+                } else {
+                    when (FileTileSize.fromGridSize(prefs.galleryGridSize)) {
+                        FileTileSize.SMALL -> FileTileSize.MEDIUM
+                        FileTileSize.MEDIUM -> FileTileSize.LARGE
+                        FileTileSize.LARGE -> FileTileSize.LARGE
+                    }
+                }
+                prefs.copy(galleryViewMode = ViewMode.GRID, galleryGridSize = nextSize.gridSize)
+            }
+        }
+    }
 
-    fun zoomOut() = applyZoom(GridZoomLevel::zoomedOut)
+    fun zoomOut() {
+        viewModelScope.launch {
+            settingsRepository.update { prefs ->
+                if (prefs.galleryViewMode == ViewMode.LIST) return@update prefs
+                when (FileTileSize.fromGridSize(prefs.galleryGridSize)) {
+                    FileTileSize.LARGE -> prefs.copy(galleryGridSize = FileTileSize.MEDIUM.gridSize)
+                    FileTileSize.MEDIUM -> prefs.copy(galleryGridSize = FileTileSize.SMALL.gridSize)
+                    FileTileSize.SMALL -> prefs.copy(galleryViewMode = ViewMode.LIST)
+                }
+            }
+        }
+    }
 
     fun zoomAlbumsIn() = stepAlbumColumns(-1)
 
@@ -261,15 +292,6 @@ class GalleryViewModel(
                     albumGridSize = (prefs.albumGridSize + step)
                         .coerceIn(MIN_GRID_COLUMNS, MAX_GRID_COLUMNS)
                 )
-            }
-        }
-    }
-
-    private fun applyZoom(transform: (GridZoomLevel) -> GridZoomLevel) {
-        viewModelScope.launch {
-            settingsRepository.update { prefs ->
-                val next = transform(GridZoomLevel(ViewMode.GRID, prefs.galleryGridSize))
-                prefs.copy(galleryViewMode = ViewMode.GRID, galleryGridSize = next.gridSize)
             }
         }
     }
@@ -400,6 +422,23 @@ class GalleryViewModel(
         clearSelection()
         viewModelScope.launch { fileRepository.setFilesHidden(ids, hidden) }
     }
+
+    /** Hides the folder backing a gallery album; its files disappear from every gallery tab. */
+    fun hideAlbum(folderId: String) {
+        viewModelScope.launch { fileRepository.setFolderHidden(folderId, true) }
+    }
+
+    private val _infoTarget = MutableStateFlow<DriveFile?>(null)
+    val infoTarget: StateFlow<DriveFile?> = _infoTarget.asStateFlow()
+
+    fun showInfoForSelection() {
+        val fileId = selection.value.singleOrNull() ?: return
+        viewModelScope.launch {
+            fileRepository.getFile(fileId)?.let { file -> _infoTarget.update { file } }
+        }
+    }
+
+    fun dismissInfo() = _infoTarget.update { null }
 
     fun archiveSelected(archived: Boolean) {
         val ids = selection.value.toList()

@@ -38,6 +38,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -60,6 +61,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.outlined.Photo
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -96,6 +98,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.drdisagree.teledrive.resources.Res
+import com.drdisagree.teledrive.domain.model.FileTileSize
 import com.drdisagree.teledrive.resources.common_actions
 import com.drdisagree.teledrive.resources.common_add_favorites
 import com.drdisagree.teledrive.resources.common_back
@@ -118,6 +121,7 @@ import com.drdisagree.teledrive.resources.gallery_no_albums
 import com.drdisagree.teledrive.resources.gallery_no_media
 import com.drdisagree.teledrive.resources.gallery_photos_videos_appear_here
 import com.drdisagree.teledrive.resources.gallery_title
+import com.drdisagree.teledrive.resources.info_details
 import com.drdisagree.teledrive.resources.nav_gallery
 import com.drdisagree.teledrive.domain.model.MediaAlbum
 import com.drdisagree.teledrive.domain.model.ViewMode
@@ -129,6 +133,7 @@ import com.drdisagree.teledrive.presentation.components.RefreshableContent
 import com.drdisagree.teledrive.presentation.components.ConfirmDialog
 import com.drdisagree.teledrive.presentation.components.EmptyState
 import com.drdisagree.teledrive.presentation.components.FileGridItem
+import com.drdisagree.teledrive.presentation.components.FileInfoSheet
 import com.drdisagree.teledrive.presentation.components.FileListItem
 import com.drdisagree.teledrive.presentation.components.LoadingState
 import com.drdisagree.teledrive.presentation.components.RenameDialog
@@ -204,6 +209,7 @@ private fun AlbumGrid(
     columns: Int,
     bottomPadding: Dp,
     onOpenAlbum: (MediaAlbum) -> Unit,
+    onHideAlbum: (MediaAlbum) -> Unit,
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit
 ) {
@@ -240,6 +246,7 @@ private fun AlbumGrid(
             AlbumCard(
                 album = album,
                 onClick = { onOpenAlbum(album) },
+                onHide = album.folderId?.let { { onHideAlbum(album) } },
                 modifier = Modifier
                     .keyboardCollectionItem(keyboard, index)
                     .animateItem()
@@ -266,6 +273,7 @@ fun GalleryScreen(
     var showMovePicker by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val renameTarget by viewModel.renameTarget.collectAsStateWithLifecycle()
+    val infoTarget by viewModel.infoTarget.collectAsStateWithLifecycle()
 
     CollectSnackbarMessages(viewModel.messages, snackbarHostState)
 
@@ -308,6 +316,10 @@ fun GalleryScreen(
             onConfirm = viewModel::confirmRename,
             onDismiss = viewModel::dismissRename
         )
+    }
+
+    infoTarget?.let { file ->
+        FileInfoSheet(file = file, onDismiss = viewModel::dismissInfo)
     }
 
     AppBackHandler(enabled = state.selectionMode) { viewModel.clearSelection() }
@@ -374,6 +386,12 @@ fun GalleryScreen(
                                 } else {
                                     stringResource(Res.string.common_select_all)
                                 }
+                            )
+                        }
+                        IconButton(onClick = { confirmTrash = true }) {
+                            Icon(
+                                Icons.Filled.DeleteOutline,
+                                contentDescription = stringResource(Res.string.common_move_trash)
                             )
                         }
                         Box {
@@ -474,12 +492,14 @@ fun GalleryScreen(
                                         children = organize
                                     )
                                 )
-                                add(
-                                    MenuAction(
-                                        label = stringResource(Res.string.common_move_trash),
-                                        icon = Icons.Filled.DeleteOutline
-                                    ) { confirmTrash = true }
-                                )
+                                if (state.selection.size == 1) {
+                                    add(
+                                        MenuAction(
+                                            label = stringResource(Res.string.info_details),
+                                            icon = Icons.Outlined.Info
+                                        ) { viewModel.showInfoForSelection() }
+                                    )
+                                }
                             }
                             ActionMenu(
                                 expanded = showSelectionOverflow,
@@ -581,6 +601,7 @@ fun GalleryScreen(
                     columns = state.albumGridSize,
                     bottomPadding = padding.calculateBottomPadding() + LocalBottomBarInset.current,
                     onOpenAlbum = onOpenAlbum,
+                    onHideAlbum = { album -> album.folderId?.let(viewModel::hideAlbum) },
                     onZoomIn = viewModel::zoomAlbumsIn,
                     onZoomOut = viewModel::zoomAlbumsOut
                 )
@@ -610,7 +631,6 @@ fun GalleryScreen(
                 index < media.itemCount && media.peek(index) is GalleryListItem.Media
             }
             val listKeyboard = rememberKeyboardCollection(mediaListState, isItem = isMedia)
-            val gridKeyboard = rememberKeyboardCollection(mediaGridState, state.gridSize, isMedia)
             val selectIfNone: (Int) -> Unit = { index ->
                 if (!state.selectionMode) mediaIdAt(index)?.let(viewModel::toggleSelection)
             }
@@ -700,9 +720,16 @@ fun GalleryScreen(
                         }
                     }
 
-                    else -> LazyVerticalGrid(
+                    else -> BoxWithConstraints(Modifier.fillMaxSize()) {
+                        val fileTileSize = FileTileSize.fromGridSize(state.gridSize)
+                        val tileWidth = fileTileSize.tileWidthDp.dp
+                        val columns = ((maxWidth - 24.dp + 6.dp) / (tileWidth + 6.dp))
+                            .toInt()
+                            .coerceAtLeast(1)
+                        val gridKeyboard = rememberKeyboardCollection(mediaGridState, columns, isMedia)
+                        LazyVerticalGrid(
                         state = mediaGridState,
-                        columns = GridCells.Fixed(state.gridSize),
+                        columns = GridCells.FixedSize(tileWidth),
                         modifier = Modifier
                             .fillMaxSize()
                             .keyboardCollection(
@@ -722,7 +749,7 @@ fun GalleryScreen(
                             top = 12.dp,
                             bottom = 12.dp + padding.calculateBottomPadding() + LocalBottomBarInset.current
                         ),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp, androidx.compose.ui.Alignment.CenterHorizontally),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         items(
@@ -764,6 +791,7 @@ fun GalleryScreen(
 
                                 null -> Unit
                             }
+                        }
                         }
                     }
                 }
