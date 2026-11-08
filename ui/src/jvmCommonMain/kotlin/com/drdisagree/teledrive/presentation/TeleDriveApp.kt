@@ -95,6 +95,8 @@ import com.drdisagree.teledrive.presentation.components.LoadingState
 import com.drdisagree.teledrive.presentation.components.LocalCompactLayout
 import com.drdisagree.teledrive.presentation.components.SessionBrokenDialog
 import com.drdisagree.teledrive.presentation.components.UpdateDialog
+import com.drdisagree.teledrive.presentation.shortcuts.LocalShortcutBindings
+import com.drdisagree.teledrive.presentation.shortcuts.rememberShortcutBindings
 import com.drdisagree.teledrive.presentation.navigation.AppNavHost
 import com.drdisagree.teledrive.presentation.navigation.BottomBarHeight
 import com.drdisagree.teledrive.presentation.navigation.LocalBottomBarHeight
@@ -186,7 +188,8 @@ fun TeleDriveApp(
     ) {
         CompositionLocalProvider(
             (LocalLocaleList as ProvidableCompositionLocal<LocaleList>) provides targetLocaleList,
-            LocalCompactLayout provides state.compactLayout
+            LocalCompactLayout provides state.compactLayout,
+            LocalShortcutBindings provides rememberShortcutBindings()
         ) {
             when {
                 state.loading -> LoadingState()

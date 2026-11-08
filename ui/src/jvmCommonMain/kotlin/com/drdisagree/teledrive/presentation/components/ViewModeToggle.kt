@@ -63,47 +63,49 @@ private fun ViewModeOption(
 ) {
     val shape = RoundedCornerShape(9.dp)
     val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-    Canvas(
-        Modifier
-            .size(48.dp)
-            .clip(shape)
-            .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-            .selectable(
-                selected = selected,
-                onClick = onClick,
-                role = Role.RadioButton
-            )
-            .semantics { contentDescription = description }
-            .padding(16.dp)
-            .fillMaxSize()
-    ) {
-        val stroke = 1.7.dp.toPx()
-        val gap = 2.dp.toPx()
-        if (glyph == ViewModeGlyph.Grid) {
-            val cell = (size.minDimension - gap * 2) / 3
-            for (row in 0..2) {
-                for (column in 0..2) {
-                    drawRoundRect(
+    TooltippedContent(description) {
+        Canvas(
+            Modifier
+                .size(48.dp)
+                .clip(shape)
+                .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                .selectable(
+                    selected = selected,
+                    onClick = onClick,
+                    role = Role.RadioButton
+                )
+                .semantics { contentDescription = description }
+                .padding(16.dp)
+                .fillMaxSize()
+        ) {
+            val stroke = 1.7.dp.toPx()
+            val gap = 2.dp.toPx()
+            if (glyph == ViewModeGlyph.Grid) {
+                val cell = (size.minDimension - gap * 2) / 3
+                for (row in 0..2) {
+                    for (column in 0..2) {
+                        drawRoundRect(
+                            color = tint,
+                            topLeft = Offset(column * (cell + gap), row * (cell + gap)),
+                            size = androidx.compose.ui.geometry.Size(cell, cell),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(stroke)
+                        )
+                    }
+                }
+            } else {
+                val dot = size.minDimension * 0.13f
+                val lineStart = dot * 2.2f
+                val lineEnd = size.width
+                for (row in 0..2) {
+                    val y = dot + row * (size.height - dot * 2) / 2
+                    drawCircle(tint, radius = dot / 2, center = Offset(dot / 2, y))
+                    drawLine(
                         color = tint,
-                        topLeft = Offset(column * (cell + gap), row * (cell + gap)),
-                        size = androidx.compose.ui.geometry.Size(cell, cell),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(stroke)
+                        start = Offset(lineStart, y),
+                        end = Offset(lineEnd, y),
+                        strokeWidth = stroke
                     )
                 }
-            }
-        } else {
-            val dot = size.minDimension * 0.13f
-            val lineStart = dot * 2.2f
-            val lineEnd = size.width
-            for (row in 0..2) {
-                val y = dot + row * (size.height - dot * 2) / 2
-                drawCircle(tint, radius = dot / 2, center = Offset(dot / 2, y))
-                drawLine(
-                    color = tint,
-                    start = Offset(lineStart, y),
-                    end = Offset(lineEnd, y),
-                    strokeWidth = stroke
-                )
             }
         }
     }

@@ -138,6 +138,12 @@ class SettingsRepositoryImpl(
             activeProxyId = this[PreferenceKeys.ACTIVE_PROXY_ID] ?: defaults.activeProxyId,
             textPreviewScale = this[PreferenceKeys.TEXT_PREVIEW_SCALE]
                 ?: defaults.textPreviewScale,
+            codeTheme = this[PreferenceKeys.CODE_THEME] ?: defaults.codeTheme,
+            showLineNumbers = this[PreferenceKeys.SHOW_LINE_NUMBERS]
+                ?: defaults.showLineNumbers,
+            wrapLines = this[PreferenceKeys.WRAP_LINES] ?: defaults.wrapLines,
+            showTooltips = this[PreferenceKeys.SHOW_TOOLTIPS] ?: defaults.showTooltips,
+            shortcuts = this[PreferenceKeys.SHORTCUTS] ?: defaults.shortcuts,
             sortField = enumOrDefault(this[PreferenceKeys.SORT_FIELD], defaults.sortField),
             sortDirection = enumOrDefault(
                 this[PreferenceKeys.SORT_DIRECTION],
@@ -223,6 +229,11 @@ class SettingsRepositoryImpl(
         this[PreferenceKeys.PROXY_ENABLED] = prefs.proxyEnabled
         this[PreferenceKeys.ACTIVE_PROXY_ID] = prefs.activeProxyId
         this[PreferenceKeys.TEXT_PREVIEW_SCALE] = prefs.textPreviewScale
+        this[PreferenceKeys.CODE_THEME] = prefs.codeTheme
+        this[PreferenceKeys.SHOW_LINE_NUMBERS] = prefs.showLineNumbers
+        this[PreferenceKeys.WRAP_LINES] = prefs.wrapLines
+        this[PreferenceKeys.SHOW_TOOLTIPS] = prefs.showTooltips
+        this[PreferenceKeys.SHORTCUTS] = prefs.shortcuts
         this[PreferenceKeys.SORT_FIELD] = prefs.sortField.name
         this[PreferenceKeys.SORT_DIRECTION] = prefs.sortDirection.name
         this[PreferenceKeys.GALLERY_SORT_FIELD] = prefs.gallerySortField.name

@@ -17,14 +17,15 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun RefreshAction(refreshing: Boolean, onRefresh: () -> Unit) {
     if (LocalPlatformCapabilities.current.supportsPullToRefresh) return
-    IconButton(onClick = onRefresh, enabled = !refreshing) {
-        if (refreshing) {
+    if (refreshing) {
+        IconButton(onClick = onRefresh, enabled = false) {
             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-        } else {
-            Icon(
-                Icons.Filled.Refresh,
-                contentDescription = stringResource(Res.string.common_refresh)
-            )
         }
+    } else {
+        TipIconButton(
+            tooltip = stringResource(Res.string.common_refresh),
+            icon = Icons.Filled.Refresh,
+            onClick = onRefresh
+        )
     }
 }

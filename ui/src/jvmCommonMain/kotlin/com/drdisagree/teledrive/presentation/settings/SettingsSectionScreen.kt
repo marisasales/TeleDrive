@@ -52,6 +52,10 @@ import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.drdisagree.teledrive.domain.model.AppLanguage
 import com.drdisagree.teledrive.domain.model.FileTileSize
+import com.drdisagree.teledrive.presentation.preview.CodeTheme
+import com.drdisagree.teledrive.resources.preview_text_line_numbers
+import com.drdisagree.teledrive.resources.preview_text_theme
+import com.drdisagree.teledrive.resources.preview_text_wrap
 import com.drdisagree.teledrive.resources.settings_delete_after_upload
 import com.drdisagree.teledrive.resources.settings_delete_after_upload_summary
 import com.drdisagree.teledrive.resources.Res
@@ -128,6 +132,8 @@ import com.drdisagree.teledrive.resources.settings_hides_app_screenshots_screen
 import com.drdisagree.teledrive.resources.settings_key_backup_stored
 import com.drdisagree.teledrive.resources.settings_link_previews
 import com.drdisagree.teledrive.resources.settings_link_previews_subtitle
+import com.drdisagree.teledrive.resources.settings_show_tooltips
+import com.drdisagree.teledrive.resources.settings_show_tooltips_subtitle
 import com.drdisagree.teledrive.resources.settings_local_copies_files_already
 import com.drdisagree.teledrive.resources.settings_log
 import com.drdisagree.teledrive.resources.settings_log_telegram
@@ -446,6 +452,7 @@ private fun SettingsSectionContent(
         SettingsSectionType.APPEARANCE -> AppearanceSection(state, viewModel)
         SettingsSectionType.PLAYBACK -> PlaybackSection(state, viewModel)
         SettingsSectionType.NOTIFICATIONS -> NotificationsSection(state, viewModel)
+        SettingsSectionType.SHORTCUTS -> ShortcutsSection(viewModel)
         SettingsSectionType.ADVANCED -> AdvancedSection(
             state = state,
             viewModel = viewModel,
@@ -1075,6 +1082,20 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showClockDialog by remember { mutableStateOf(false) }
     var showDesktopClickDialog by remember { mutableStateOf(false) }
+    var showCodeThemeDialog by remember { mutableStateOf(false) }
+
+    if (showCodeThemeDialog) {
+        ChoiceDialog(
+            title = stringResource(Res.string.preview_text_theme),
+            options = CodeTheme.choices.map { it.key to it.displayName },
+            selected = CodeTheme.fromKey(prefs.codeTheme).key,
+            onSelect = { key ->
+                showCodeThemeDialog = false
+                viewModel.update { it.copy(codeTheme = key) }
+            },
+            onDismiss = { showCodeThemeDialog = false }
+        )
+    }
 
     if (showThemeDialog) {
         ChoiceDialog(
@@ -1243,6 +1264,14 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
         }
         add {
             SettingsSwitchRow(
+                title = stringResource(Res.string.settings_show_tooltips),
+                subtitle = stringResource(Res.string.settings_show_tooltips_subtitle),
+                checked = prefs.showTooltips,
+                onChange = { value -> viewModel.update { it.copy(showTooltips = value) } }
+            )
+        }
+        add {
+            SettingsSwitchRow(
                 title = stringResource(Res.string.settings_recent_files),
                 subtitle = stringResource(Res.string.settings_recent_files_subtitle),
                 checked = prefs.showRecentFiles,
@@ -1265,6 +1294,27 @@ private fun AppearanceSection(state: SettingsUiState, viewModel: SettingsViewMod
                 onChange = { value ->
                     viewModel.update { it.copy(showArchivedFiles = value) }
                 }
+            )
+        }
+        add {
+            SettingsClickRow(
+                title = stringResource(Res.string.preview_text_theme),
+                subtitle = CodeTheme.fromKey(prefs.codeTheme).displayName,
+                onClick = { showCodeThemeDialog = true }
+            )
+        }
+        add {
+            SettingsSwitchRow(
+                title = stringResource(Res.string.preview_text_line_numbers),
+                checked = prefs.showLineNumbers,
+                onChange = { value -> viewModel.update { it.copy(showLineNumbers = value) } }
+            )
+        }
+        add {
+            SettingsSwitchRow(
+                title = stringResource(Res.string.preview_text_wrap),
+                checked = prefs.wrapLines,
+                onChange = { value -> viewModel.update { it.copy(wrapLines = value) } }
             )
         }
     }

@@ -40,6 +40,12 @@ data class UserPreferences(
     val showRecentFiles: Boolean = true,
     val linkPreviews: Boolean = true,
     val textPreviewScale: Float = 1f,
+    val codeTheme: String = "auto",
+    val showLineNumbers: Boolean = true,
+    val wrapLines: Boolean = true,
+    val showTooltips: Boolean = true,
+    /** Encoded overrides of [ShortcutAction] bindings; blank means "all defaults". */
+    val shortcuts: String = "",
 
     val sortField: FileSortField = FileSortField.NAME,
     val sortDirection: SortDirection = SortDirection.ASCENDING,

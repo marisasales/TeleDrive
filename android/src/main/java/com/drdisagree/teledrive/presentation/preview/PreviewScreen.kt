@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -177,6 +178,9 @@ fun PreviewScreen(
     val preferredSubtitleLanguage by
     viewModel.preferredSubtitleLanguage.collectAsStateWithLifecycle()
     val storedTextScale by viewModel.textScale.collectAsStateWithLifecycle()
+    val codeTheme by viewModel.codeTheme.collectAsStateWithLifecycle()
+    val showLineNumbers by viewModel.showLineNumbers.collectAsStateWithLifecycle()
+    val wrapLines by viewModel.wrapLines.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val shareChooserTitle = stringResource(Res.string.preview_share_chooser_title)
@@ -276,6 +280,13 @@ fun PreviewScreen(
                     loadLinkMetadata = { url -> viewModel.linkPreview(url) },
                     storedTextScale = storedTextScale,
                     onTextScaleChange = viewModel::setTextScale,
+                    codeTheme = codeTheme,
+                    onCodeThemeChange = viewModel::setCodeTheme,
+                    showLineNumbers = showLineNumbers,
+                    onShowLineNumbersChange = viewModel::setShowLineNumbers,
+                    wrapLines = wrapLines,
+                    onWrapLinesChange = viewModel::setWrapLines,
+                    onCopied = viewModel::notifyCopied,
                     file = file,
                     content = content,
                     isActivePage = pagerState.currentPage == page,
@@ -502,7 +513,14 @@ private fun PreviewPage(
     loadLinkMetadata: suspend (String) -> LinkMetadata?,
     playerSession: PlayerSession,
     storedTextScale: Float,
-    onTextScaleChange: (Float) -> Unit
+    onTextScaleChange: (Float) -> Unit,
+    codeTheme: String,
+    onCodeThemeChange: (String) -> Unit,
+    showLineNumbers: Boolean,
+    onShowLineNumbersChange: (Boolean) -> Unit,
+    wrapLines: Boolean,
+    onWrapLinesChange: (Boolean) -> Unit,
+    onCopied: () -> Unit
 ) {
     // One state for the screen's life: re-creating it on save would leave the gesture writing to a
     // state nothing renders.
@@ -605,38 +623,26 @@ private fun PreviewPage(
                     loadMetadata = loadLinkMetadata
                 )
             }
-        } else Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .then(pinchToScale)
-                .padding(previewContentPadding())
-        ) {
+        } else {
             val linkContext = LocalContext.current
-            if (MimeTypes.isMarkdown(file.mimeType)) {
-                MarkdownText(
-                    text = content.text,
-                    textScale = textScale,
-                    onOpenUrl = { url -> openUrl(linkContext, url) }
-                )
-            } else {
-                LinkedText(
-                    text = content.text,
-                    style = MaterialTheme.typography.bodySmall
-                        .copy(fontFamily = FontFamily.Monospace)
-                        .copy(color = MaterialTheme.colorScheme.onSurface)
-                        .scaledBy(textScale),
-                    linkColor = MaterialTheme.colorScheme.primary,
-                    onOpenUrl = { url -> openUrl(linkContext, url) }
-                )
-            }
-            if (content.truncated) {
-                Text(
-                    text = stringResource(Res.string.preview_truncated_download_view),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            CodeTextViewer(
+                fileName = file.name,
+                text = content.text,
+                truncated = content.truncated,
+                storedTextScale = storedTextScale,
+                onTextScaleChange = onTextScaleChange,
+                showLineNumbers = showLineNumbers,
+                onShowLineNumbersChange = onShowLineNumbersChange,
+                wrapLines = wrapLines,
+                onWrapLinesChange = onWrapLinesChange,
+                themeKey = codeTheme,
+                onThemeChange = onCodeThemeChange,
+                onOpenUrl = { url -> openUrl(linkContext, url) },
+                onCopied = onCopied,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(previewContentPadding())
+            )
         }
 
         is PreviewContent.Archive -> ArchiveList(content)

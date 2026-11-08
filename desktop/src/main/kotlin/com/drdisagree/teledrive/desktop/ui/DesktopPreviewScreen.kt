@@ -99,11 +99,15 @@ import com.drdisagree.teledrive.presentation.components.EmptyState
 import com.drdisagree.teledrive.presentation.components.ErrorState
 import com.drdisagree.teledrive.presentation.components.FileInfoSheet
 import com.drdisagree.teledrive.presentation.components.LoadingState
+import com.drdisagree.teledrive.presentation.components.TipIconButton
 import com.drdisagree.teledrive.presentation.components.RenameDialog
 import com.drdisagree.teledrive.presentation.platform.LocalFileRevealer
 import com.drdisagree.teledrive.presentation.platform.LocalUrlOpener
+import com.drdisagree.teledrive.presentation.preview.CodeTextViewer
 import com.drdisagree.teledrive.presentation.preview.PreviewContent
 import com.drdisagree.teledrive.presentation.preview.PreviewViewModel
+import com.drdisagree.teledrive.presentation.shortcuts.LocalShortcutBindings
+import com.drdisagree.teledrive.presentation.shortcuts.ShortcutAction
 import com.drdisagree.teledrive.resources.Res
 import com.drdisagree.teledrive.resources.common_actions
 import com.drdisagree.teledrive.resources.common_back
@@ -151,6 +155,7 @@ fun DesktopPreviewScreen(
     viewModel: PreviewViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val bindings = LocalShortcutBindings.current
     LaunchedEffect(state.closed) { if (state.closed) onBack() }
 
     var index by remember(state.ready) { mutableStateOf(state.initialIndex) }
@@ -183,28 +188,25 @@ fun DesktopPreviewScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.common_back)
-                        )
-                    }
+                    TipIconButton(
+                        tooltip = stringResource(Res.string.common_back),
+                        icon = Icons.AutoMirrored.Filled.ArrowBack,
+                        onClick = onBack
+                    )
                 },
                 actions = {
                     file?.let { currentFile ->
-                        IconButton(onClick = { viewModel.showInfo(currentFile) }) {
-                            Icon(
-                                Icons.Filled.Info,
-                                contentDescription = stringResource(Res.string.preview_file_info)
-                            )
-                        }
+                        TipIconButton(
+                            tooltip = stringResource(Res.string.preview_file_info),
+                            icon = Icons.Filled.Info,
+                            onClick = { viewModel.showInfo(currentFile) }
+                        )
                         Box {
-                            IconButton(onClick = { showOverflow = true }) {
-                                Icon(
-                                    Icons.Filled.MoreVert,
-                                    contentDescription = stringResource(Res.string.common_actions)
-                                )
-                            }
+                            TipIconButton(
+                                tooltip = stringResource(Res.string.common_actions),
+                                icon = Icons.Filled.MoreVert,
+                                onClick = { showOverflow = true }
+                            )
                             PreviewOverflowMenu(
                                 expanded = showOverflow,
                                 file = currentFile,
@@ -229,14 +231,19 @@ fun DesktopPreviewScreen(
                 .focusable()
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                    when (event.key) {
-                        Key.DirectionLeft -> {
+                    when {
+                        bindings.matches(ShortcutAction.PREVIOUS_PREVIEW, event) -> {
                             if (index > 0) index--
                             true
                         }
 
-                        Key.DirectionRight -> {
+                        bindings.matches(ShortcutAction.NEXT_PREVIEW, event) -> {
                             if (index < state.files.lastIndex) index++
+                            true
+                        }
+
+                        bindings.matches(ShortcutAction.CLOSE_PREVIEW, event) -> {
+                            onBack()
                             true
                         }
 
@@ -462,6 +469,10 @@ private fun PreviewPane(
     val urlOpener = LocalUrlOpener.current
     val preferredAudioLanguage by viewModel.preferredAudioLanguage.collectAsState()
     val preferredSubtitleLanguage by viewModel.preferredSubtitleLanguage.collectAsState()
+    val storedTextScale by viewModel.textScale.collectAsState()
+    val codeTheme by viewModel.codeTheme.collectAsState()
+    val showLineNumbers by viewModel.showLineNumbers.collectAsState()
+    val wrapLines by viewModel.wrapLines.collectAsState()
 
     val edgeToEdge = when (content) {
         is PreviewContent.Image,
@@ -582,35 +593,22 @@ private fun PreviewPane(
                 )
             }
 
-            is PreviewContent.PlainText -> Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp)
-            ) {
-                if (MimeTypes.isMarkdown(file.mimeType)) {
-                    MarkdownText(
-                        text = current.text,
-                        onOpenUrl = { url -> urlOpener.open(url) }
-                    )
-                } else {
-                    LinkedText(
-                        text = current.text,
-                        style = MaterialTheme.typography.bodySmall
-                            .copy(fontFamily = FontFamily.Monospace)
-                            .copy(color = MaterialTheme.colorScheme.onSurface),
-                        linkColor = MaterialTheme.colorScheme.primary,
-                        onOpenUrl = { url -> urlOpener.open(url) }
-                    )
-                }
-                if (current.truncated) {
-                    Text(
-                        text = stringResource(Res.string.preview_truncated_download_view),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            is PreviewContent.PlainText -> CodeTextViewer(
+                fileName = file.name,
+                text = current.text,
+                truncated = current.truncated,
+                storedTextScale = storedTextScale,
+                onTextScaleChange = viewModel::setTextScale,
+                showLineNumbers = showLineNumbers,
+                onShowLineNumbersChange = viewModel::setShowLineNumbers,
+                wrapLines = wrapLines,
+                onWrapLinesChange = viewModel::setWrapLines,
+                themeKey = codeTheme,
+                onThemeChange = viewModel::setCodeTheme,
+                onOpenUrl = { url -> urlOpener.open(url) },
+                onCopied = viewModel::notifyCopied,
+                modifier = Modifier.fillMaxSize()
+            )
 
             is PreviewContent.Archive -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),

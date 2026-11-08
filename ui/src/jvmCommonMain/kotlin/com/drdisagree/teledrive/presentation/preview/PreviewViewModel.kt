@@ -15,6 +15,7 @@ import com.drdisagree.teledrive.resources.preview_hidden
 import com.drdisagree.teledrive.resources.preview_local_copy_removed
 import com.drdisagree.teledrive.resources.preview_nothing_to_remove
 import com.drdisagree.teledrive.resources.preview_removed_favorites
+import com.drdisagree.teledrive.resources.preview_text_copy_done
 import com.drdisagree.teledrive.resources.preview_unarchived
 import com.drdisagree.teledrive.resources.preview_unhidden
 import com.drdisagree.teledrive.core.files.DeleteConsentRequest
@@ -330,6 +331,40 @@ class PreviewViewModel(
         viewModelScope.launch {
             settingsRepository.update { it.copy(textPreviewScale = scale) }
         }
+    }
+
+    val codeTheme: StateFlow<String> = settingsRepository.preferences
+        .map { it.codeTheme }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "auto")
+
+    val showLineNumbers: StateFlow<Boolean> = settingsRepository.preferences
+        .map { it.showLineNumbers }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    val wrapLines: StateFlow<Boolean> = settingsRepository.preferences
+        .map { it.wrapLines }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setCodeTheme(key: String) {
+        viewModelScope.launch {
+            settingsRepository.update { it.copy(codeTheme = key) }
+        }
+    }
+
+    fun setShowLineNumbers(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.update { it.copy(showLineNumbers = show) }
+        }
+    }
+
+    fun setWrapLines(wrap: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.update { it.copy(wrapLines = wrap) }
+        }
+    }
+
+    fun notifyCopied() {
+        _messages.tryEmit(UiText.Resource(Res.string.preview_text_copy_done))
     }
 
     private val linkCache = mutableMapOf<String, LinkMetadata?>()

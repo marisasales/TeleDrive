@@ -57,6 +57,11 @@ object PreferenceKeys {
     val PROXY_ENABLED = booleanPreferencesKey("proxy_enabled")
     val ACTIVE_PROXY_ID = stringPreferencesKey("active_proxy_id")
     val TEXT_PREVIEW_SCALE = floatPreferencesKey("text_preview_scale")
+    val CODE_THEME = stringPreferencesKey("code_theme")
+    val SHOW_LINE_NUMBERS = booleanPreferencesKey("show_line_numbers")
+    val WRAP_LINES = booleanPreferencesKey("wrap_lines")
+    val SHOW_TOOLTIPS = booleanPreferencesKey("show_tooltips")
+    val SHORTCUTS = stringPreferencesKey("shortcuts")
 
     val SORT_FIELD = stringPreferencesKey("sort_field")
     val SORT_DIRECTION = stringPreferencesKey("sort_direction")

@@ -129,6 +129,7 @@ import com.drdisagree.teledrive.presentation.common.DayBucket
 import com.drdisagree.teledrive.presentation.common.Formatters
 import com.drdisagree.teledrive.presentation.common.isInitialLoad
 import com.drdisagree.teledrive.presentation.components.RefreshAction
+import com.drdisagree.teledrive.presentation.components.TipIconButton
 import com.drdisagree.teledrive.presentation.components.RefreshableContent
 import com.drdisagree.teledrive.presentation.components.ConfirmDialog
 import com.drdisagree.teledrive.presentation.components.EmptyState
@@ -362,45 +363,19 @@ fun GalleryScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = viewModel::clearSelection) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = stringResource(Res.string.common_clear_selection)
-                            )
-                        }
+                        TipIconButton(tooltip = stringResource(Res.string.common_clear_selection), icon = Icons.Filled.Close, onClick = viewModel::clearSelection)
                     },
                     actions = {
-                        IconButton(
+                        TipIconButton(
+                            tooltip = if (allSelected) stringResource(Res.string.common_deselect_all) else stringResource(Res.string.common_select_all),
+                            icon = if (allSelected) Icons.Filled.Deselect else Icons.Filled.SelectAll,
                             onClick = {
                                 if (allSelected) viewModel.clearSelection() else viewModel.selectAll()
                             }
-                        ) {
-                            Icon(
-                                imageVector = if (allSelected) {
-                                    Icons.Filled.Deselect
-                                } else {
-                                    Icons.Filled.SelectAll
-                                },
-                                contentDescription = if (allSelected) {
-                                    stringResource(Res.string.common_deselect_all)
-                                } else {
-                                    stringResource(Res.string.common_select_all)
-                                }
-                            )
-                        }
-                        IconButton(onClick = { confirmTrash = true }) {
-                            Icon(
-                                Icons.Filled.DeleteOutline,
-                                contentDescription = stringResource(Res.string.common_move_trash)
-                            )
-                        }
+                        )
+                        TipIconButton(tooltip = stringResource(Res.string.common_move_trash), icon = Icons.Filled.DeleteOutline, onClick = { confirmTrash = true })
                         Box {
-                            IconButton(onClick = { showSelectionOverflow = true }) {
-                                Icon(
-                                    Icons.Filled.MoreVert,
-                                    contentDescription = stringResource(Res.string.common_actions)
-                                )
-                            }
+                            TipIconButton(tooltip = stringResource(Res.string.common_actions), icon = Icons.Filled.MoreVert, onClick = { showSelectionOverflow = true })
                             val storage = buildList {
                                 if (state.capabilities.canDownload) {
                                     add(
@@ -526,12 +501,7 @@ fun GalleryScreen(
                     actions = {
                     if (state.isAlbumView || state.tab != GalleryTab.ALBUMS) {
                         var showSortMenu by remember { mutableStateOf(false) }
-                            IconButton(onClick = { showSortMenu = true }) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.Sort,
-                                    contentDescription = stringResource(Res.string.files_sort)
-                                )
-                            }
+                            TipIconButton(tooltip = stringResource(Res.string.files_sort), icon = Icons.AutoMirrored.Filled.Sort, onClick = { showSortMenu = true })
                             SortMenu(
                                 expanded = showSortMenu,
                                 current = state.sortField,

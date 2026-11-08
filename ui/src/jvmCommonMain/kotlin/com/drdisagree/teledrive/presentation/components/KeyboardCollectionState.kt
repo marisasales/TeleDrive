@@ -28,6 +28,9 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.CollectionItemInfo
+import com.drdisagree.teledrive.presentation.shortcuts.LocalShortcutBindings
+import com.drdisagree.teledrive.presentation.shortcuts.ShortcutAction
+import com.drdisagree.teledrive.presentation.shortcuts.ShortcutBindings
 import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.drop
@@ -50,6 +53,7 @@ class KeyboardCollectionState internal constructor(
 
     internal var columns by mutableIntStateOf(1)
     internal var horizontal = false
+    internal var bindings: ShortcutBindings = ShortcutBindings.Default
     internal var isItem: (Int) -> Boolean = { true }
     private val requesters = HashMap<Int, FocusRequester>()
     private var restorePending = false
@@ -81,44 +85,56 @@ class KeyboardCollectionState internal constructor(
         if (event.type != KeyEventType.KeyDown || !focusInItem) return false
         restorePending = false
         KeyboardHandoff.armed = false
-        val command = event.isCtrlPressed || event.isMetaPressed
         val alt = event.isAltPressed
-        val plain = !command && !alt && !event.isShiftPressed
-        val onItem = plain && focusOnItem
+        val plain = !event.isCtrlPressed && !event.isMetaPressed && !alt && !event.isShiftPressed
         val vertical = plain && !horizontal
         val across = plain && (horizontal || columns > 1)
         val index = current
         return when {
-            onItem && (event.key == Key.Enter || event.key == Key.NumPadEnter) -> {
-                KeyboardHandoff.armed = true
-                false
-            }
-
+            // Fixed navigation stays non-rebindable: arrows, paging and Alt+Left ("up one level").
             alt && event.key == Key.DirectionLeft -> back(shortcuts)
             vertical && event.key == Key.DirectionDown -> moveRows(1).let { true }
             vertical && event.key == Key.DirectionUp -> moveRows(-1).let { true }
             across && event.key == Key.DirectionRight -> step(1).let { true }
             across && event.key == Key.DirectionLeft -> step(-1).let { true }
-            onItem && event.key == Key.DirectionRight -> shortcuts.onExpand.fire(index)
-            onItem && event.key == Key.DirectionLeft -> shortcuts.onCollapse.fire(index)
+            plain && focusOnItem && event.key == Key.DirectionRight -> {
+                shortcuts.onExpand.fire(index)
+            }
+
+            plain && focusOnItem && event.key == Key.DirectionLeft -> {
+                shortcuts.onCollapse.fire(index)
+            }
+
             plain && event.key == Key.MoveHome -> focusIndex(firstItem()).let { true }
             plain && event.key == Key.MoveEnd -> focusIndex(lastItem()).let { true }
             vertical && event.key == Key.PageDown -> page(1).let { true }
             vertical && event.key == Key.PageUp -> page(-1).let { true }
-            onItem && event.key == Key.Spacebar -> shortcuts.onToggleSelect.fire(index)
-            onItem && event.key == Key.Delete -> shortcuts.onDelete.fire(index).also {
-                restorePending = it
+            plain && focusOnItem && event.key == Key.Spacebar -> {
+                shortcuts.onToggleSelect.fire(index)
             }
 
-            onItem && event.key == Key.F2 -> shortcuts.onRename.fire(index)
-            plain && event.key == Key.Backspace -> back(shortcuts)
-            plain && event.key == Key.Escape -> shortcuts.onClear.fire()
-            command && !alt && event.key == Key.A -> shortcuts.onSelectAll.fire()
-            command && !alt && focusOnItem && event.key == Key.X -> shortcuts.onCut.fire(index).also {
-                restorePending = it
+            // Rebindable commands.
+            bindings.matches(ShortcutAction.OPEN, event) && focusOnItem -> {
+                KeyboardHandoff.armed = true
+                false
             }
 
-            command && !alt && event.key == Key.V -> shortcuts.onPaste.fire()
+            bindings.matches(ShortcutAction.BACK, event) -> back(shortcuts)
+            bindings.matches(ShortcutAction.RENAME, event) && focusOnItem -> {
+                shortcuts.onRename.fire(index)
+            }
+
+            bindings.matches(ShortcutAction.DELETE, event) && focusOnItem -> {
+                shortcuts.onDelete.fire(index).also { restorePending = it }
+            }
+
+            bindings.matches(ShortcutAction.SELECT_ALL, event) -> shortcuts.onSelectAll.fire()
+            bindings.matches(ShortcutAction.CUT, event) && focusOnItem -> {
+                shortcuts.onCut.fire(index).also { restorePending = it }
+            }
+
+            bindings.matches(ShortcutAction.PASTE, event) -> shortcuts.onPaste.fire()
+            bindings.matches(ShortcutAction.CLEAR_SELECTION, event) -> shortcuts.onClear.fire()
             else -> false
         }
     }
@@ -244,6 +260,7 @@ fun rememberKeyboardCollection(
     val scope = rememberCoroutineScope()
     val currentIsItem by rememberUpdatedState(isItem)
     val currentState = rememberSaveable(state) { mutableIntStateOf(0) }
+    val bindings = LocalShortcutBindings.current
     return remember(state) {
         KeyboardCollectionState(
             currentState = currentState,
@@ -261,6 +278,7 @@ fun rememberKeyboardCollection(
     }.also {
         it.columns = columns
         it.isItem = { index -> currentIsItem(index) }
+        it.bindings = bindings
         RestoreFocusOnChange(it) { state.layoutInfo.totalItemsCount }
     }
 }
@@ -274,6 +292,7 @@ fun rememberKeyboardCollection(
     val scope = rememberCoroutineScope()
     val currentIsItem by rememberUpdatedState(isItem)
     val currentState = rememberSaveable(state) { mutableIntStateOf(0) }
+    val bindings = LocalShortcutBindings.current
     return remember(state, horizontal) {
         KeyboardCollectionState(
             currentState = currentState,
@@ -298,6 +317,7 @@ fun rememberKeyboardCollection(
         it.columns = 1
         it.horizontal = horizontal
         it.isItem = { index -> currentIsItem(index) }
+        it.bindings = bindings
         RestoreFocusOnChange(it) { state.layoutInfo.totalItemsCount }
     }
 }

@@ -484,6 +484,19 @@
     <string name="preview_share_chooser_title">Share</string>
     <string name="preview_share_copy">Share a copy</string>
     <string name="preview_truncated_download_view">\nPreview truncated. Download to view the full file.</string>
+    <string name="preview_text_font_decrease">Decrease text size</string>
+    <string name="preview_text_font_increase">Increase text size</string>
+    <string name="preview_text_line_numbers">Line numbers</string>
+    <string name="preview_text_wrap">Wrap lines</string>
+    <string name="preview_text_copy_all">Copy all text</string>
+    <string name="preview_text_theme">Code theme</string>
+    <string name="preview_text_source">Source</string>
+    <string name="preview_text_edit">Edit text</string>
+    <string name="preview_text_save">Save</string>
+    <string name="preview_text_cancel">Cancel</string>
+    <string name="preview_text_saving">Saving…</string>
+    <string name="preview_text_saved">Text saved and queued for upload</string>
+    <string name="preview_text_copy_done">Copied to clipboard</string>
     <string name="preview_unarchive">Unarchive</string>
     <string name="preview_unarchived">Unarchived</string>
     <string name="preview_unhidden">Unhidden</string>
@@ -790,6 +803,8 @@
     <string name="settings_debug_log_empty">Nothing logged yet. Reproduce the problem, then share the log.</string>
     <string name="settings_link_previews">Link previews</string>
     <string name="settings_link_previews_subtitle">Telegram fetches the title and image for saved links</string>
+    <string name="settings_show_tooltips">Show tooltips</string>
+    <string name="settings_show_tooltips_subtitle">Show button names when hovering</string>
     <string name="settings_parallel_transfers">Parallel transfers</string>
     <string name="settings_proxy">Proxy</string>
     <string name="settings_proxy_subtitle">Reach Telegram where it is blocked</string>
@@ -1016,4 +1031,31 @@
         <item>简体中文</item>
         <item>Español</item>
     </string-array>
+    <string name="settings_section_shortcuts_title">Keyboard shortcuts</string>
+    <string name="settings_section_shortcuts_subtitle">View and customize keyboard shortcuts</string>
+    <string name="shortcuts_intro">Select a shortcut to record a new key combination.</string>
+    <string name="shortcuts_reset_all">Reset all</string>
+    <string name="shortcuts_reset">Reset</string>
+    <string name="shortcuts_edit">Change</string>
+    <string name="shortcuts_press_keys">Press the new shortcut</string>
+    <string name="shortcuts_conflict">This shortcut is already assigned to %1$s.</string>
+    <string name="shortcuts_conflict_title">Shortcut already in use</string>
+    <string name="shortcuts_cancel">Cancel</string>
+    <string name="shortcut_group_navigation">Navigation</string>
+    <string name="shortcut_group_items">Items</string>
+    <string name="shortcut_group_selection">Selection</string>
+    <string name="shortcut_group_preview">Preview</string>
+    <string name="shortcut_action_search">Search</string>
+    <string name="shortcut_action_new_folder">Create folder</string>
+    <string name="shortcut_action_open">Open item</string>
+    <string name="shortcut_action_back">Go back</string>
+    <string name="shortcut_action_rename">Rename item</string>
+    <string name="shortcut_action_delete">Delete item</string>
+    <string name="shortcut_action_select_all">Select all</string>
+    <string name="shortcut_action_cut">Cut item</string>
+    <string name="shortcut_action_paste">Paste item</string>
+    <string name="shortcut_action_clear_selection">Clear selection</string>
+    <string name="shortcut_action_previous_preview">Previous item</string>
+    <string name="shortcut_action_next_preview">Next item</string>
+    <string name="shortcut_action_close_preview">Close preview</string>
 </resources>

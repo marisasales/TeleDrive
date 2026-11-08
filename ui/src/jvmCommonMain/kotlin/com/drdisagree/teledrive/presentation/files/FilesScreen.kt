@@ -120,9 +120,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isCtrlPressed
-import androidx.compose.ui.input.key.isShiftPressed
-import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
@@ -187,6 +184,10 @@ import com.drdisagree.teledrive.presentation.platform.LocalPlatformCapabilities
 import com.drdisagree.teledrive.presentation.platform.LocalMultiFilePicker
 import com.drdisagree.teledrive.presentation.platform.PickResult
 import com.drdisagree.teledrive.presentation.preview.PreviewSequence
+import com.drdisagree.teledrive.presentation.components.TipIconButton
+import com.drdisagree.teledrive.presentation.components.TooltippedContent
+import com.drdisagree.teledrive.presentation.shortcuts.LocalShortcutBindings
+import com.drdisagree.teledrive.presentation.shortcuts.ShortcutAction
 import com.drdisagree.teledrive.resources.Res
 import com.drdisagree.teledrive.resources.common_actions
 import com.drdisagree.teledrive.resources.common_add
@@ -354,6 +355,7 @@ fun FilesScreen(
         }
     }
     val lifted by rememberToolbarLift(gridState)
+    val bindings = LocalShortcutBindings.current
 
     val keyboardShortcutModifier = if (isDesktop) {
         Modifier.onPreviewKeyEvent { event ->
@@ -361,14 +363,14 @@ fun FilesScreen(
                     showMovePicker || showCopyPicker || showTelegramImport ||
                     showTelegramImportDestination || showSelectionOverflow || confirmTrash ||
                     confirmDeleteLocal || renameTarget != null || infoTarget != null
-            if (modalOrEditorOpen || event.type != KeyEventType.KeyDown || !event.isCtrlPressed) {
+            if (modalOrEditorOpen || event.type != KeyEventType.KeyDown) {
                 false
             } else when {
-                event.key == Key.F && !event.isShiftPressed -> {
+                bindings.matches(ShortcutAction.SEARCH, event) -> {
                     onOpenSearch()
                     true
                 }
-                event.key == Key.N && event.isShiftPressed -> {
+                bindings.matches(ShortcutAction.NEW_FOLDER, event) -> {
                     showCreateFolder = true
                     true
                 }
@@ -431,51 +433,20 @@ fun FilesScreen(
                                 )
                             },
                             navigationIcon = {
-                                IconButton(onClick = viewModel::clearSelection) {
-                                    Icon(
-                                        Icons.Filled.Close,
-                                        contentDescription = stringResource(Res.string.common_clear_selection)
-                                    )
-                                }
+                                TipIconButton(tooltip = stringResource(Res.string.common_clear_selection), icon = Icons.Filled.Close, onClick = viewModel::clearSelection)
                             },
                             actions = {
-                                IconButton(
+                                TipIconButton(
+                                    tooltip = if (allSelected) stringResource(Res.string.common_deselect_all) else stringResource(Res.string.common_select_all),
+                                    icon = if (allSelected) Icons.Filled.Deselect else Icons.Filled.SelectAll,
                                     onClick = {
                                         if (allSelected) viewModel.clearSelection() else viewModel.selectAll()
                                     }
-                                ) {
-                                    Icon(
-                                        imageVector = if (allSelected) {
-                                            Icons.Filled.Deselect
-                                        } else {
-                                            Icons.Filled.SelectAll
-                                        },
-                                        contentDescription = if (allSelected) {
-                                            stringResource(Res.string.common_deselect_all)
-                                        } else {
-                                            stringResource(Res.string.common_select_all)
-                                        }
-                                    )
-                                }
-                                IconButton(onClick = { showMovePicker = true }) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.DriveFileMove,
-                                        contentDescription = stringResource(Res.string.files_move)
-                                    )
-                                }
-                                IconButton(onClick = { confirmTrash = true }) {
-                                    Icon(
-                                        Icons.Filled.DeleteOutline,
-                                        contentDescription = stringResource(Res.string.common_move_trash)
-                                    )
-                                }
+                                )
+                                TipIconButton(tooltip = stringResource(Res.string.files_move), icon = Icons.AutoMirrored.Filled.DriveFileMove, onClick = { showMovePicker = true })
+                                TipIconButton(tooltip = stringResource(Res.string.common_move_trash), icon = Icons.Filled.DeleteOutline, onClick = { confirmTrash = true })
                                 Box {
-                                    IconButton(onClick = { showSelectionOverflow = true }) {
-                                        Icon(
-                                            Icons.Filled.MoreVert,
-                                            contentDescription = stringResource(Res.string.common_actions)
-                                        )
-                                    }
+                                    TipIconButton(tooltip = stringResource(Res.string.common_actions), icon = Icons.Filled.MoreVert, onClick = { showSelectionOverflow = true })
                                     val fileRevealer = LocalFileRevealer.current
                                     val revealPath = state.capabilities.soleLocalPath
                                         ?.takeIf { path -> remember(path) { File(path).exists() } }
@@ -636,10 +607,7 @@ fun FilesScreen(
                             navigationIcon = {
                                 onBack?.let {
                                     IconButton(onClick = it) {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = stringResource(Res.string.common_back)
-                                        )
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.common_back))
                                     }
                                 }
                             },
@@ -649,7 +617,7 @@ fun FilesScreen(
                                     onRefresh = viewModel::refresh
                                 )
                                 if (showInlineSearch && isDesktop) {
-                                    ShortcutTooltip("Ctrl+F", modifier = searchFieldModifier) {
+                                    ShortcutTooltip(stringResource(Res.string.files_search), modifier = searchFieldModifier) {
                                         FilesSearchField(
                                             modifier = Modifier.fillMaxWidth(),
                                             onClick = onOpenSearch
@@ -661,23 +629,24 @@ fun FilesScreen(
                                         onClick = onOpenSearch
                                     )
                                 } else {
-                                    IconButton(onClick = onOpenSearch) {
-                                        Icon(
-                                            Icons.Filled.Search,
-                                            contentDescription = stringResource(Res.string.files_search)
-                                        )
-                                    }
+                                    TipIconButton(
+                                        tooltip = stringResource(Res.string.files_search),
+                                        icon = Icons.Filled.Search,
+                                        onClick = onOpenSearch
+                                    )
                                 }
                                 if (isDesktop) {
-                                    ShortcutTooltip("Ctrl+Shift+N") {
-                                        IconButton(onClick = { showCreateFolder = true }) {
-                                            Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(Res.string.files_new_folder))
-                                        }
-                                    }
+                                    TipIconButton(
+                                        tooltip = stringResource(Res.string.files_new_folder),
+                                        icon = Icons.Filled.CreateNewFolder,
+                                        onClick = { showCreateFolder = true }
+                                    )
                                 } else {
-                                    IconButton(onClick = { showCreateFolder = true }) {
-                                        Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(Res.string.files_new_folder))
-                                    }
+                                    TipIconButton(
+                                        tooltip = stringResource(Res.string.files_new_folder),
+                                        icon = Icons.Filled.CreateNewFolder,
+                                        onClick = { showCreateFolder = true }
+                                    )
                                 }
                                 ViewModeToggle(
                                     viewMode = state.viewMode,
@@ -685,12 +654,11 @@ fun FilesScreen(
                                     gridDescription = stringResource(Res.string.view_mode_grid),
                                     listDescription = stringResource(Res.string.view_mode_list)
                                 )
-                                IconButton(onClick = { showSortMenu = true }) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.Sort,
-                                        contentDescription = stringResource(Res.string.files_sort)
-                                    )
-                                }
+                                TipIconButton(
+                                    tooltip = stringResource(Res.string.files_sort),
+                                    icon = Icons.AutoMirrored.Filled.Sort,
+                                    onClick = { showSortMenu = true }
+                                )
                                 SortMenu(
                                     expanded = showSortMenu,
                                     current = state.sortField,
@@ -1661,17 +1629,11 @@ private fun DesktopFileColumnsHeader() {
 
 @Composable
 internal fun ShortcutTooltip(
-    shortcut: String,
+    label: String,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    TooltipBox(
-        modifier = modifier,
-        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-        tooltip = { PlainTooltip { Text(shortcut) } },
-        state = rememberTooltipState(),
-        content = { content() }
-    )
+    TooltippedContent(tooltip = label, modifier = modifier, content = content)
 }
 
 private val FILE_GRID_CELL_SIZE = 48.dp
