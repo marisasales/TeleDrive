@@ -40,7 +40,6 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,6 +56,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -137,7 +137,6 @@ import com.drdisagree.teledrive.resources.common_cancel
 import com.drdisagree.teledrive.resources.common_pause
 import com.drdisagree.teledrive.resources.common_resume
 import com.drdisagree.teledrive.resources.file_count
-import com.drdisagree.teledrive.resources.home_active_transfers
 import com.drdisagree.teledrive.resources.home_back_up_pending
 import com.drdisagree.teledrive.resources.home_backing_up
 import com.drdisagree.teledrive.resources.home_backup_all_in_telegram
@@ -193,7 +192,6 @@ import org.koin.compose.viewmodel.koinViewModel
 fun HomeScreen(
     onOpenFile: (String, PreviewSequence) -> Unit,
     onOpenFolder: (String) -> Unit,
-    onOpenTransfers: () -> Unit,
     onOpenChannels: () -> Unit,
     onOpenCollection: (CollectionType) -> Unit,
     onOpenBackupSettings: () -> Unit,
@@ -494,10 +492,8 @@ fun HomeScreen(
                     CollectionLinks(
                         showArchived = state.showArchivedSection,
                         showHidden = state.showHiddenSection,
-                        activeTransferCount = state.activeTransferCount,
                         offlineBytes = state.offlineBytes,
                         onOpenCollection = onOpenCollection,
-                        onOpenTransfers = onOpenTransfers,
                         showTrash = !capabilities.isDesktop,
                         trashItemCount = trashSummary.itemCount,
                         trashTotalSizeBytes = trashSummary.totalSizeBytes,
@@ -535,67 +531,56 @@ internal fun DriveOverview(
 private fun CollectionLinks(
     showArchived: Boolean,
     showHidden: Boolean,
-    activeTransferCount: Int,
     offlineBytes: Long,
     onOpenCollection: (CollectionType) -> Unit,
-    onOpenTransfers: () -> Unit,
     showTrash: Boolean,
     trashItemCount: Int,
     trashTotalSizeBytes: Long,
-    onOpenTrash: () -> Unit,
-    showTransferHistory: Boolean = true
+    onOpenTrash: () -> Unit
 ) {
-    GroupedList(horizontalPadding = 0.dp) {
-        CollectionType.entries.forEach { collection ->
-            val visible = when (collection) {
-                CollectionType.ARCHIVED -> showArchived
-                CollectionType.HIDDEN -> showHidden
-                else -> true
-            }
-            add(visible = visible) {
-                CollectionRow(
-                    icon = collection.icon,
-                    title = stringResource(collection.titleRes),
-                    subtitle = if (
-                        collection == CollectionType.AVAILABLE_OFFLINE && offlineBytes > 0
-                    ) {
-                        stringResource(
-                            Res.string.collection_offline_on_device,
-                            Formatters.bytes(offlineBytes)
-                        )
-                    } else {
-                        stringResource(collection.subtitleRes)
-                    },
-                    onClick = { onOpenCollection(collection) }
-                )
-            }
+    val collections = CollectionType.entries.filter { collection ->
+        when (collection) {
+            CollectionType.ARCHIVED -> showArchived
+            CollectionType.HIDDEN -> showHidden
+            else -> true
         }
-        if (showTransferHistory) {
-            add {
-                CollectionRow(
-                    icon = Icons.Filled.SwapVert,
-                    title = stringResource(Res.string.home_transfer_history),
-                    subtitle = if (activeTransferCount > 0) {
-                        stringResource(Res.string.home_active_transfers, activeTransferCount)
-                    } else {
-                        stringResource(Res.string.home_transfer_history_subtitle)
-                    },
-                    onClick = onOpenTransfers
-                )
-            }
-        }
-        if (showTrash) {
-            add {
-                CollectionRow(
-                    icon = Icons.Filled.Delete,
-                    title = stringResource(Res.string.trash),
-                    subtitle = stringResource(
-                        Res.string.home_trash_summary,
-                        trashItemCount,
-                        Formatters.bytes(trashTotalSizeBytes)
-                    ),
-                    onClick = onOpenTrash
-                )
+    }
+    val itemCount = collections.size + if (showTrash) 1 else 0
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val columns = if (maxWidth >= 600.dp) 2 else 1
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            repeat((itemCount + columns - 1) / columns) { rowIndex ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    repeat(columns) { columnIndex ->
+                        val index = rowIndex * columns + columnIndex
+                        when {
+                            index < collections.size -> {
+                                val collection = collections[index]
+                                CollectionTile(
+                                    modifier = Modifier.weight(1f),
+                                    icon = collection.icon,
+                                    title = stringResource(collection.titleRes),
+                                    subtitle = if (collection == CollectionType.AVAILABLE_OFFLINE && offlineBytes > 0) {
+                                        stringResource(Res.string.collection_offline_on_device, Formatters.bytes(offlineBytes))
+                                    } else stringResource(collection.subtitleRes),
+                                    onClick = { onOpenCollection(collection) }
+                                )
+                            }
+                            showTrash && index == collections.size -> CollectionTile(
+                                modifier = Modifier.weight(1f),
+                                icon = Icons.Filled.Delete,
+                                title = stringResource(Res.string.trash),
+                                subtitle = stringResource(
+                                    Res.string.home_trash_summary,
+                                    trashItemCount,
+                                    Formatters.bytes(trashTotalSizeBytes)
+                                ),
+                                onClick = onOpenTrash
+                            )
+                            else -> Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
             }
         }
     }
@@ -645,32 +630,31 @@ private fun PendingSyncCard(pending: PendingSync, onSyncNow: () -> Unit) {
 }
 
 @Composable
-private fun CollectionRow(
+private fun CollectionTile(
+    modifier: Modifier = Modifier,
     icon: ImageVector,
     title: String,
     subtitle: String,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(role = Role.Button, onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -690,7 +674,6 @@ private fun DesktopHomeOverviewCard(
     state: HomeUiState,
     storageSlices: List<StorageSlice>,
     onOpenFiles: () -> Unit,
-    onOpenTransfers: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val connectionStatus = when {
@@ -733,7 +716,6 @@ private fun DesktopHomeOverviewCard(
                         connectionStatus = connectionStatus,
                         connectionIndicator = connectionIndicator,
                         onOpenFiles = onOpenFiles,
-                        onOpenTransfers = onOpenTransfers,
                         modifier = Modifier.weight(1f)
                     )
                     Row(
@@ -765,8 +747,7 @@ private fun DesktopHomeOverviewCard(
                         state = state,
                         connectionStatus = connectionStatus,
                         connectionIndicator = connectionIndicator,
-                        onOpenFiles = onOpenFiles,
-                        onOpenTransfers = onOpenTransfers
+                        onOpenFiles = onOpenFiles
                     )
                     if (totalBytes > 0L) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -798,7 +779,6 @@ private fun DesktopHomeActions(
     connectionStatus: org.jetbrains.compose.resources.StringResource,
     connectionIndicator: ConnectionIndicator,
     onOpenFiles: () -> Unit,
-    onOpenTransfers: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -825,17 +805,6 @@ private fun DesktopHomeActions(
                     contentColor = MaterialTheme.colorScheme.primaryContainer
                 )
             ) { Text(stringResource(Res.string.nav_files)) }
-            OutlinedButton(
-                onClick = onOpenTransfers,
-                shapes = ButtonDefaults.shapes(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ),
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
-                )
-            ) { Text(stringResource(Res.string.home_transfer_history)) }
         }
     }
 }
