@@ -27,6 +27,13 @@ class NoteStore(
         return if (safe.endsWith(EXTENSION, ignoreCase = true)) safe else "$safe$EXTENSION"
     }
 
+    /** Keeps the extension of the file being edited instead of forcing .md. */
+    fun fileNameLike(title: String, existingName: String): String {
+        val extension = FileNameUtils.extensionOf(existingName).ifEmpty { EXTENSION.trimStart('.') }
+        val safe = FileNameUtils.sanitize(title.trim().ifEmpty { UNTITLED })
+        return if (FileNameUtils.extensionOf(safe).isNotEmpty()) safe else "$safe.$extension"
+    }
+
     private companion object {
         const val NOTE_DIR = "notes"
         const val EXTENSION = ".md"

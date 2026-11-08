@@ -791,7 +791,7 @@ class FilesViewModel(
         clearSelection()
         viewModelScope.launch {
             val file = fileRepository.getFiles(listOf(fileId)).firstOrNull() ?: return@launch
-            if (!MimeTypes.isText(file.mimeType)) {
+            if (!file.hasLocalCopy || !MimeTypes.isText(file.mimeType, file.name)) {
                 _messages.tryEmit(UiText.Resource(Res.string.note_not_editable))
                 return@launch
             }

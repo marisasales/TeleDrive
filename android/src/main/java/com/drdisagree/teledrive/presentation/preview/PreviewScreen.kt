@@ -328,7 +328,7 @@ fun PreviewScreen(
                         }
                     },
                     actions = {
-                        if (MimeTypes.isText(currentFile.mimeType)) {
+                        if (currentFile.hasLocalCopy && MimeTypes.isText(currentFile.mimeType, currentFile.name)) {
                             IconButton(
                                 onClick = {
                                     onEditNote(

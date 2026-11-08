@@ -110,7 +110,7 @@ class PreviewContentResolver(
         // never starts unasked.
         val autoFetchable = file.sizeBytes <= AUTO_PREVIEW_LIMIT &&
                 (MimeTypes.isImage(file.mimeType) ||
-                        MimeTypes.isText(file.mimeType) ||
+                        MimeTypes.isText(file.mimeType, file.name) ||
                         MimeTypes.isApk(file.mimeType, file.name))
         if (!autoFetchable) {
             emit(PreviewContent.RequiresDownload(file.sizeBytes))
@@ -137,7 +137,7 @@ class PreviewContentResolver(
         MimeTypes.isVideo(file.mimeType) -> PreviewContent.LocalMedia(path, isAudio = false)
         MimeTypes.isAudio(file.mimeType) -> PreviewContent.LocalMedia(path, isAudio = true)
         MimeTypes.isPdf(file.mimeType) -> PreviewContent.Pdf(path)
-        MimeTypes.isText(file.mimeType) -> readText(path)
+        MimeTypes.isText(file.mimeType, file.name) -> readText(path)
         MimeTypes.isArchive(file.mimeType) -> readArchive(file, path)
         MimeTypes.isApk(file.mimeType, file.name) -> readApk(path)
         else -> PreviewContent.Unsupported(Res.string.preview_no_preview_for_type)

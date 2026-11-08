@@ -696,8 +696,16 @@ class FileRepositoryImpl(
         title: String,
         body: String
     ): AppResult<String> {
-        val name = noteStore.fileName(title.ifBlank { fallbackTitle(body) })
+        val requested = title.ifBlank { fallbackTitle(body) }
         val existing = fileId?.let { fileDao.byId(it) }
+        if (existing != null && existing.localPath?.let(::File)?.isFile != true) {
+            return AppResult.Failure(AppError.NoLocalCopy)
+        }
+        val name = if (existing != null) {
+            noteStore.fileNameLike(requested, existing.name)
+        } else {
+            noteStore.fileName(requested)
+        }
         val file = noteStore.write(name, body, existing?.localPath)
         val now = System.currentTimeMillis()
 
@@ -736,35 +744,9 @@ class FileRepositoryImpl(
 
     override suspend fun readNote(fileId: String): AppResult<String> {
         val entity = fileDao.byId(fileId) ?: return AppResult.Failure(AppError.NotFound)
-        entity.localPath?.let(noteStore::read)?.let { return AppResult.Success(it) }
-        val fetched = fetchNoteBody(entity) ?: return AppResult.Failure(AppError.NoRemoteCopy)
-        return AppResult.Success(fetched)
-    }
-
-    private suspend fun fetchNoteBody(entity: FileEntity): String? {
-        val remoteFileId = entity.remoteFileId ?: return null
-        var downloaded: String? = null
-        telegramClient.downloadDocument(remoteFileId).collect { event ->
-            if (event is TelegramDownloadEvent.Completed) downloaded = event.localPath
-        }
-        val source = downloaded?.let(::File)?.takeIf { it.exists() } ?: return null
-
-        val target = File(source.parentFile, "note-${entity.id}.tmp")
-        val body = runCatching {
-            if (entity.isEncrypted) {
-                val key = wrappedKeyRepository.get(CryptoKeys.CONTENT) ?: return null
-                source.inputStream().buffered().use { input ->
-                    target.outputStream().buffered().use { output ->
-                        streamCrypto.decryptStream(key, input, output)
-                    }
-                }
-                target.readText()
-            } else {
-                source.readText()
-            }
-        }.getOrNull()
-        target.delete()
-        return body
+        val path = entity.localPath ?: return AppResult.Failure(AppError.NoLocalCopy)
+        val body = noteStore.read(path) ?: return AppResult.Failure(AppError.NoLocalCopy)
+        return AppResult.Success(body)
     }
 
     private fun fallbackTitle(body: String): String {

@@ -19,7 +19,8 @@ data class SelectionCapabilities(
             canFreeUpSpace = files.any { it.hasRemoteCopy && it.hasLocalCopy },
             anyNotAvailableOffline = files.any { !it.isAvailableOffline },
             anyUnfavorited = files.any { !it.isFavorite },
-            canEditNote = files.singleOrNull()?.let { MimeTypes.isText(it.mimeType) } == true,
+            canEditNote = files.singleOrNull()
+                ?.let { it.hasLocalCopy && MimeTypes.isText(it.mimeType, it.name) } == true,
             soleLocalPath = files.singleOrNull()?.localPath
         )
     }
