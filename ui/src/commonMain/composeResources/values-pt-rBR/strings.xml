@@ -1057,4 +1057,7 @@
     <string name="shortcut_action_previous_preview">Item anterior</string>
     <string name="shortcut_action_next_preview">Próximo item</string>
     <string name="shortcut_action_close_preview">Fechar pré-visualização</string>
+    <string name="settings_debug_log_empty">Nada registrado ainda. Reproduza o problema e compartilhe o registro.</string>
+    <string name="settings_share_debug_log">Compartilhar registro</string>
+    <string name="settings_share_debug_log_subtitle">Envie o registro de depuração para anexá-lo a um relato de erro</string>
 </resources>

@@ -1001,4 +1001,49 @@
         <item>Español</item>
         <item>Bahasa Indonesia</item>
     </string-array>
+    <string name="preview_text_cancel">取消</string>
+    <string name="preview_text_copy_all">复制全部文本</string>
+    <string name="preview_text_copy_done">已复制到剪贴板</string>
+    <string name="preview_text_edit">编辑文本</string>
+    <string name="preview_text_font_decrease">缩小文字</string>
+    <string name="preview_text_font_increase">放大文字</string>
+    <string name="preview_text_line_numbers">行号</string>
+    <string name="preview_text_save">保存</string>
+    <string name="preview_text_saved">文本已保存并加入上传队列</string>
+    <string name="preview_text_saving">正在保存…</string>
+    <string name="preview_text_source">源代码</string>
+    <string name="preview_text_theme">代码主题</string>
+    <string name="preview_text_wrap">自动换行</string>
+    <string name="settings_debug_log_empty">尚无日志。请重现问题，然后分享日志。</string>
+    <string name="settings_section_shortcuts_subtitle">查看并自定义键盘快捷键</string>
+    <string name="settings_section_shortcuts_title">键盘快捷键</string>
+    <string name="settings_share_debug_log">分享日志</string>
+    <string name="settings_share_debug_log_subtitle">发送调试日志以附加到错误报告</string>
+    <string name="settings_show_tooltips">显示工具提示</string>
+    <string name="settings_show_tooltips_subtitle">悬停时显示按钮名称</string>
+    <string name="shortcut_action_back">返回</string>
+    <string name="shortcut_action_clear_selection">清除选择</string>
+    <string name="shortcut_action_close_preview">关闭预览</string>
+    <string name="shortcut_action_cut">剪切项目</string>
+    <string name="shortcut_action_delete">删除项目</string>
+    <string name="shortcut_action_new_folder">创建文件夹</string>
+    <string name="shortcut_action_next_preview">下一个项目</string>
+    <string name="shortcut_action_open">打开项目</string>
+    <string name="shortcut_action_paste">粘贴项目</string>
+    <string name="shortcut_action_previous_preview">上一个项目</string>
+    <string name="shortcut_action_rename">重命名项目</string>
+    <string name="shortcut_action_search">搜索</string>
+    <string name="shortcut_action_select_all">全选</string>
+    <string name="shortcut_group_items">项目</string>
+    <string name="shortcut_group_navigation">导航</string>
+    <string name="shortcut_group_preview">预览</string>
+    <string name="shortcut_group_selection">选择</string>
+    <string name="shortcuts_cancel">取消</string>
+    <string name="shortcuts_conflict">此快捷键已分配给 %1$s。</string>
+    <string name="shortcuts_conflict_title">快捷键已被使用</string>
+    <string name="shortcuts_edit">更改</string>
+    <string name="shortcuts_intro">选择一个快捷键以录入新的按键组合。</string>
+    <string name="shortcuts_press_keys">按下新的快捷键</string>
+    <string name="shortcuts_reset">重置</string>
+    <string name="shortcuts_reset_all">全部重置</string>
 </resources>

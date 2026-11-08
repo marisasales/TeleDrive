@@ -1043,4 +1043,49 @@
         <item>Español</item>
         <item>Bahasa Indonesia</item>
     </string-array>
+    <string name="preview_text_cancel">Отмена</string>
+    <string name="preview_text_copy_all">Скопировать весь текст</string>
+    <string name="preview_text_copy_done">Скопировано в буфер обмена</string>
+    <string name="preview_text_edit">Изменить текст</string>
+    <string name="preview_text_font_decrease">Уменьшить размер текста</string>
+    <string name="preview_text_font_increase">Увеличить размер текста</string>
+    <string name="preview_text_line_numbers">Номера строк</string>
+    <string name="preview_text_save">Сохранить</string>
+    <string name="preview_text_saved">Текст сохранён и добавлен в очередь загрузки</string>
+    <string name="preview_text_saving">Сохранение…</string>
+    <string name="preview_text_source">Исходный код</string>
+    <string name="preview_text_theme">Тема кода</string>
+    <string name="preview_text_wrap">Перенос строк</string>
+    <string name="settings_debug_log_empty">Пока ничего не записано. Повторите проблему, затем поделитесь журналом.</string>
+    <string name="settings_section_shortcuts_subtitle">Просмотр и настройка сочетаний клавиш</string>
+    <string name="settings_section_shortcuts_title">Сочетания клавиш</string>
+    <string name="settings_share_debug_log">Поделиться журналом</string>
+    <string name="settings_share_debug_log_subtitle">Отправить журнал отладки для приложения к отчёту об ошибке</string>
+    <string name="settings_show_tooltips">Показывать подсказки</string>
+    <string name="settings_show_tooltips_subtitle">Показывать названия кнопок при наведении</string>
+    <string name="shortcut_action_back">Назад</string>
+    <string name="shortcut_action_clear_selection">Снять выделение</string>
+    <string name="shortcut_action_close_preview">Закрыть предварительный просмотр</string>
+    <string name="shortcut_action_cut">Вырезать элемент</string>
+    <string name="shortcut_action_delete">Удалить элемент</string>
+    <string name="shortcut_action_new_folder">Создать папку</string>
+    <string name="shortcut_action_next_preview">Следующий элемент</string>
+    <string name="shortcut_action_open">Открыть элемент</string>
+    <string name="shortcut_action_paste">Вставить элемент</string>
+    <string name="shortcut_action_previous_preview">Предыдущий элемент</string>
+    <string name="shortcut_action_rename">Переименовать элемент</string>
+    <string name="shortcut_action_search">Поиск</string>
+    <string name="shortcut_action_select_all">Выбрать всё</string>
+    <string name="shortcut_group_items">Элементы</string>
+    <string name="shortcut_group_navigation">Навигация</string>
+    <string name="shortcut_group_preview">Предварительный просмотр</string>
+    <string name="shortcut_group_selection">Выделение</string>
+    <string name="shortcuts_cancel">Отмена</string>
+    <string name="shortcuts_conflict">Это сочетание уже назначено для «%1$s».</string>
+    <string name="shortcuts_conflict_title">Сочетание уже используется</string>
+    <string name="shortcuts_edit">Изменить</string>
+    <string name="shortcuts_intro">Выберите сочетание, чтобы записать новую комбинацию клавиш.</string>
+    <string name="shortcuts_press_keys">Нажмите новое сочетание</string>
+    <string name="shortcuts_reset">Сбросить</string>
+    <string name="shortcuts_reset_all">Сбросить всё</string>
 </resources>
