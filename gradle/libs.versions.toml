@@ -1,6 +1,6 @@
 [versions]
 #noinspection UnusedVersionCatalogEntry
-appVersion = "2.0.0"
+appVersion = "2.1.0"
 #noinspection UnusedVersionCatalogEntry
 appVersionCode = "12"
 agp = "9.4.1"
