@@ -332,7 +332,7 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = padding.add(
                     horizontal = if (maxWidth >= 840.dp) 32.dp else 16.dp,
-                    top = 8.dp,
+                    top = 4.dp,
                     bottom = 24.dp + LocalBottomBarInset.current
                 ),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -511,8 +511,8 @@ internal fun DriveOverview(
     greeting: String,
     dateTime: String
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 greeting,
                 style = MaterialTheme.typography.headlineMedium,
