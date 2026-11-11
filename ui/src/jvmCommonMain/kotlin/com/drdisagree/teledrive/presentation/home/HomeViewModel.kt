@@ -16,6 +16,7 @@ import com.drdisagree.teledrive.data.repository.ActiveChannel
 import com.drdisagree.teledrive.domain.model.BackupTrigger
 import com.drdisagree.teledrive.domain.model.DriveChannel
 import com.drdisagree.teledrive.domain.model.StorageSlice
+import com.drdisagree.teledrive.domain.model.UserPreferences
 import com.drdisagree.teledrive.domain.repository.BackupRepository
 import com.drdisagree.teledrive.domain.repository.ChannelRepository
 import com.drdisagree.teledrive.domain.repository.FileRepository
@@ -31,6 +32,7 @@ import com.drdisagree.teledrive.resources.home_backing_up_new_files
 import com.drdisagree.teledrive.resources.home_nothing_new_to_back_up
 import com.drdisagree.teledrive.resources.home_queued_files
 import com.drdisagree.teledrive.resources.home_switched_drive
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -259,6 +261,13 @@ class HomeViewModel(
 
     fun syncNow() = publishScheduler.kick()
 
+    val sections: StateFlow<HomeSections> = settingsRepository.preferences
+        .map(HomeSections::of)
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeSections.of(UserPreferences()))
+
+    fun claimFirstConnect(): Boolean = firstConnectClaimed.compareAndSet(false, true)
+
     private val lockedPromptDismissed = MutableStateFlow(false)
 
     val lockedFilesPrompt: StateFlow<Int> = combine(
@@ -312,5 +321,6 @@ class HomeViewModel(
 
     private companion object {
         const val COUNTS_DEBOUNCE_MS = 300L
+        val firstConnectClaimed = AtomicBoolean(false)
     }
 }

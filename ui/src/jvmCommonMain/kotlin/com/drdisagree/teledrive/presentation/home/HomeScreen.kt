@@ -67,7 +67,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,9 +78,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -106,7 +108,6 @@ import com.drdisagree.teledrive.presentation.components.ConnectionIndicator
 import com.drdisagree.teledrive.presentation.components.DriveAvatarSwitcher
 import com.drdisagree.teledrive.presentation.components.FileThumbnail
 import com.drdisagree.teledrive.presentation.components.GroupedList
-import com.drdisagree.teledrive.presentation.components.LoadingState
 import com.drdisagree.teledrive.presentation.components.PermissionWarningCard
 import com.drdisagree.teledrive.presentation.components.chartColor
 import com.drdisagree.teledrive.presentation.components.keyboardCollection
@@ -169,8 +170,8 @@ import com.drdisagree.teledrive.resources.home_session_progress
 import com.drdisagree.teledrive.resources.home_status_connected
 import com.drdisagree.teledrive.resources.home_status_connecting
 import com.drdisagree.teledrive.resources.home_status_offline
-import com.drdisagree.teledrive.resources.home_status_rebuilding
 import com.drdisagree.teledrive.resources.home_status_syncing
+import com.drdisagree.teledrive.resources.home_status_rebuilding
 import com.drdisagree.teledrive.resources.home_storage_percent
 import com.drdisagree.teledrive.resources.home_storage_percent_min
 import com.drdisagree.teledrive.resources.home_sync_now
@@ -203,6 +204,7 @@ fun HomeScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val trashSummary by viewModel.trashSummary.collectAsStateWithLifecycle()
     val personalization by viewModel.personalization.collectAsStateWithLifecycle()
+    val sections by viewModel.sections.collectAsStateWithLifecycle()
     var lastConnectionStatus by remember { mutableStateOf<ConnectionStatus?>(null) }
     val scanning by viewModel.scanning.collectAsStateWithLifecycle()
     val pendingSync by viewModel.pendingSync.collectAsStateWithLifecycle()
@@ -257,6 +259,12 @@ fun HomeScreen(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val status = rememberConnectionStatus(
+        offline = state.offline,
+        connection = state.connection,
+        known = !state.loading,
+        claimFirstConnect = viewModel::claimFirstConnect
+    )
     CollectSnackbarMessages(viewModel.messages, snackbarHostState)
 
     Scaffold(
@@ -264,18 +272,13 @@ fun HomeScreen(
         snackbarHost = { BottomBarSnackbarHost(snackbarHostState) },
         topBar = {
             LargeFlexibleTopAppBar(
-            title = {
-                if (scrollBehavior.state.collapsedFraction >= 0.5f) {
-                    Text(stringResource(Res.string.app_name))
-                }
-            },
-            expandedHeight = 96.dp,
-            subtitle = {
-                    val status = rememberConnectionStatus(
-                        offline = state.offline,
-                        connection = state.connection,
-                        known = !state.loading
-                    )
+                title = {
+                    if (scrollBehavior.state.collapsedFraction >= 0.5f) {
+                        Text(stringResource(Res.string.app_name))
+                    }
+                },
+                expandedHeight = 96.dp,
+                subtitle = {
                     AnimatedVisibility(
                         visible = status != null,
                         enter = fadeIn() + expandVertically(),
@@ -324,7 +327,15 @@ fun HomeScreen(
         }
     ) { padding ->
         if (state.loading) {
-            LoadingState(modifier = Modifier.padding(padding))
+            HomeSkeleton(
+                sections = sections,
+                showBackupCard = capabilities.supportsAutoBackup,
+                contentPadding = padding.add(
+                    horizontal = 16.dp,
+                    top = 4.dp,
+                    bottom = 24.dp + LocalBottomBarInset.current
+                )
+            )
             return@Scaffold
         }
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -337,7 +348,7 @@ fun HomeScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-            if (state.missingPermissions.isNotEmpty()) {
+                if (state.missingPermissions.isNotEmpty()) {
                 item(key = "permissions") {
                     Column(Modifier.animateItem()) {
                         PermissionWarningCard(
@@ -436,7 +447,8 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.keyboardCollection(
                                 recentKeyboard,
-                                state.recentFiles.size
+                                state.recentFiles.size,
+                                label = stringResource(Res.string.home_section_recent)
                             )
                         ) {
                             itemsIndexed(state.recentFiles, key = { _, it -> it.id }) { index, file ->
@@ -1107,47 +1119,50 @@ private fun BackupCard(
 
 /** Only shown when connectivity needs attention; a recovery shows briefly, then the row goes. */
 @Composable
-private fun rememberConnectionStatus(
+internal fun rememberConnectionStatus(
     offline: Boolean,
     connection: TelegramConnectionState,
-    known: Boolean
+    known: Boolean,
+    claimFirstConnect: () -> Boolean
 ): ConnectionStatus? {
-    if (!known) return null
-    val settled = !offline && connection == TelegramConnectionState.READY
-    var wasSettled by rememberSaveable { mutableStateOf(settled) }
-    var showRecovered by remember { mutableStateOf(false) }
-
-    LaunchedEffect(settled) {
-        if (settled && !wasSettled) {
-            showRecovered = true
-            delay(RECOVERED_VISIBLE_MS.milliseconds)
-            showRecovered = false
-        }
-        wasSettled = settled
-    }
-
-    return when {
+    val problem = when {
+        !known -> null
         offline -> ConnectionStatus(
             ConnectionIndicator.OFFLINE,
             Res.string.home_status_offline
         )
+
+        connection == TelegramConnectionState.READY -> null
 
         connection == TelegramConnectionState.UPDATING -> ConnectionStatus(
             ConnectionIndicator.WORKING,
             Res.string.home_status_syncing
         )
 
-        connection != TelegramConnectionState.READY -> ConnectionStatus(
+        else -> ConnectionStatus(
             ConnectionIndicator.WORKING,
             Res.string.home_status_connecting
         )
+    }
+    var shown by remember { mutableStateOf<ConnectionStatus?>(null) }
+    var showRecovered by remember { mutableStateOf(false) }
 
-        showRecovered -> ConnectionStatus(
-            ConnectionIndicator.CONNECTED,
-            Res.string.home_status_connected
-        )
+    LaunchedEffect(problem, known) {
+        if (problem != null) {
+            showRecovered = false
+            shown = problem
+        } else if (shown != null || (known && claimFirstConnect())) {
+            shown = null
+            showRecovered = true
+            delay(RECOVERED_VISIBLE_MS.milliseconds)
+            showRecovered = false
+        }
+    }
 
-        else -> null
+    return shown ?: if (showRecovered) {
+        ConnectionStatus(ConnectionIndicator.CONNECTED, Res.string.home_status_connected)
+    } else {
+        null
     }
 }
 
@@ -1175,21 +1190,23 @@ private fun StorageCard(
         shape = MaterialTheme.shapes.extraLarge
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = Formatters.bytes(totalBytes),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            if (showFileCount) {
+            Column(modifier = Modifier.semantics(mergeDescendants = true) {}) {
                 Text(
-                    text = pluralStringResource(
-                        Res.plurals.file_count,
-                        if (isDesktop) animatedTotalFiles else totalFiles,
-                        if (isDesktop) animatedTotalFiles else totalFiles
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = Formatters.bytes(totalBytes),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                if (showFileCount) {
+                    Text(
+                        text = pluralStringResource(
+                            Res.plurals.file_count,
+                            if (isDesktop) animatedTotalFiles else totalFiles,
+                            if (isDesktop) animatedTotalFiles else totalFiles
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             Spacer(Modifier.height(16.dp))
             StorageBar(slices = slices, totalBytes = totalBytes)
@@ -1237,14 +1254,30 @@ private fun StorageLegend(
     labelColor: Color = MaterialTheme.colorScheme.onSurface,
     detailColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
+    val percents = slices.map { slice ->
+        val percent = slice.totalBytes * 100f / totalBytes
+        if (percent < 1f) {
+            stringResource(Res.string.home_storage_percent_min)
+        } else {
+            stringResource(Res.string.home_storage_percent, percent.roundToInt())
+        }
+    }
+    val style = MaterialTheme.typography.bodySmall
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val percentWidth = with(density) {
+        percents.maxOf { measurer.measure(it, style).size.width }.toDp()
+    }
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         slices.forEachIndexed { index, slice ->
-            val percent = slice.totalBytes * 100f / totalBytes
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics(mergeDescendants = true) {}
+                    .padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -1274,14 +1307,12 @@ private fun StorageLegend(
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text = if (percent < 1f) {
-                        stringResource(Res.string.home_storage_percent_min)
-                    } else {
-                        stringResource(Res.string.home_storage_percent, percent.roundToInt())
-                    },
+                    text = percents[index],
                     style = MaterialTheme.typography.bodySmall,
                     color = detailColor,
-                    maxLines = 1
+                    maxLines = 1,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width(percentWidth)
                 )
             }
             if (index < slices.lastIndex) {
@@ -1296,9 +1327,6 @@ private fun StorageLegend(
     }
 }
 
-/**
- * A disabled schedule outranks a stale timestamp, which means nothing while nothing is scheduled.
- */
 @Composable
 private fun backupFreshnessLabel(
     autoBackupEnabled: Boolean,

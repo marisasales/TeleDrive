@@ -91,7 +91,6 @@ import com.drdisagree.teledrive.core.files.PendingShare
 import com.drdisagree.teledrive.domain.model.AppLanguage
 import com.drdisagree.teledrive.domain.model.AppTheme
 import com.drdisagree.teledrive.presentation.applock.LockScreen
-import com.drdisagree.teledrive.presentation.components.LoadingState
 import com.drdisagree.teledrive.presentation.components.LocalCompactLayout
 import com.drdisagree.teledrive.presentation.components.SessionBrokenDialog
 import com.drdisagree.teledrive.presentation.components.UpdateDialog
@@ -121,6 +120,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import com.drdisagree.teledrive.presentation.common.platformConfiguration
+import com.drdisagree.teledrive.presentation.navigation.isReadyForNavigation
 
 @Composable
 fun TeleDriveApp(
@@ -168,7 +169,8 @@ fun TeleDriveApp(
     }
 
     val systemDefault = remember { java.util.Locale.getDefault() }
-    remember(state.language) {
+    val configuration = platformConfiguration()
+    remember(state.language, configuration) {
         java.util.Locale.setDefault(
             when (state.language) {
                 AppLanguage.SYSTEM -> systemDefault
@@ -194,7 +196,11 @@ fun TeleDriveApp(
             LocalShortcutBindings provides rememberShortcutBindings()
         ) {
             when {
-                state.loading -> LoadingState()
+                state.loading -> Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                )
                 state.locked -> LockScreen(onUnlocked = viewModel::unlock)
                 else -> MainScaffold(
                     pendingShare = pendingShare,
@@ -810,9 +816,14 @@ private fun navigateTopLevel(
     navController: NavHostController,
     destination: TopLevelDestination
 ) {
-    navController.navigateOnce(destination.route) {
-        popUpTo(Route.Home) { inclusive = destination.route == Route.Home }
+    if (!navController.isReadyForNavigation) return
+    while (navController.previousBackStackEntry?.destination?.hasRoute(Route.Home::class) == false) {
+        if (!navController.popBackStack()) break
+    }
+    navController.navigate(destination.route) {
+        popUpTo(Route.Home) { saveState = true }
         launchSingleTop = true
+        restoreState = true
     }
 }
 

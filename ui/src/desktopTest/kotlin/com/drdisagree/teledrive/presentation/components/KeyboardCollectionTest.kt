@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -78,6 +79,96 @@ class KeyboardCollectionTest {
                 BasicText("after", Modifier.testTag("after").clickable {})
             }
         }
+    }
+
+    @Test
+    fun `up and down move along a horizontal row and stop at its end`() {
+        rule.setContent {
+            Column {
+                val listState = rememberLazyListState()
+                val keyboard = rememberKeyboardCollection(listState, horizontal = true)
+                LazyRow(
+                    state = listState,
+                    modifier = Modifier
+                        .size(300.dp, 80.dp)
+                        .keyboardCollection(keyboard, 3)
+                ) {
+                    items(3) { index ->
+                        BasicText(
+                            "row-$index",
+                            Modifier
+                                .keyboardCollectionItem(keyboard, index)
+                                .testTag("row-$index")
+                                .size(60.dp)
+                                .clickable {}
+                        )
+                    }
+                }
+                BasicText("below", Modifier.testTag("below").clickable {})
+            }
+        }
+        rule.onNodeWithTag("row-0").requestFocus()
+
+        rule.onNodeWithTag("row-0").performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag("row-1").assertIsFocused()
+
+        rule.onNodeWithTag("row-1").performKeyInput { pressKey(Key.DirectionUp) }
+        rule.onNodeWithTag("row-0").assertIsFocused()
+
+        rule.onNodeWithTag("row-0").performKeyInput { pressKey(Key.MoveEnd) }
+        rule.waitForIdle()
+        rule.onNodeWithTag("row-2").performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag("row-2").assertIsFocused()
+    }
+
+    @Test
+    fun `tab stops on a labeled list, arrows enter it and shift tab returns to it`() {
+        items.addAll((0 until 6).map { "item-$it" })
+        rule.setContent {
+            Column {
+                BasicText("before", Modifier.testTag("before").clickable {})
+                val gridState = rememberLazyGridState()
+                val keyboard = rememberKeyboardCollection(gridState, 3)
+                LazyVerticalGrid(
+                    state = gridState,
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier
+                        .testTag("grid")
+                        .size(300.dp, 200.dp)
+                        .keyboardCollection(keyboard, items.size, label = "Files")
+                ) {
+                    items(items.size, key = { items[it] }) { index ->
+                        BasicText(
+                            items[index],
+                            Modifier
+                                .keyboardCollectionItem(keyboard, index)
+                                .testTag(items[index])
+                                .size(60.dp)
+                                .clickable {}
+                        )
+                    }
+                }
+                BasicText("after", Modifier.testTag("after").clickable {})
+            }
+        }
+        rule.onNodeWithTag("before").requestFocus()
+
+        rule.onNodeWithTag("before").performKeyInput { pressKey(Key.Tab) }
+        rule.onNodeWithTag("grid").assertIsFocused()
+
+        rule.onNodeWithTag("grid").performKeyInput { pressKey(Key.DirectionDown) }
+        rule.waitForIdle()
+        rule.onNodeWithTag("item-0").assertIsFocused()
+
+        rule.onNodeWithTag("item-0").performKeyInput { pressKey(Key.Tab) }
+        rule.onNodeWithTag("after").assertIsFocused()
+
+        rule.onNodeWithTag("after").performKeyInput {
+            keyDown(Key.ShiftLeft)
+            pressKey(Key.Tab)
+            keyUp(Key.ShiftLeft)
+        }
+        rule.onNodeWithTag("grid").assertIsFocused()
     }
 
     @Test
