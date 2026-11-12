@@ -32,7 +32,11 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun HomeSkeleton(
     sections: HomeSections,
+    showRecentSection: Boolean,
     showBackupCard: Boolean,
+    showPendingSync: Boolean,
+    showTrash: Boolean,
+    showTransfers: Boolean,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier
 ) {
@@ -44,7 +48,7 @@ fun HomeSkeleton(
             CollectionType.HIDDEN -> sections.showHidden
             else -> true
         }
-    } + EXTRA_LINKS
+    } + (if (showTrash) 1 else 0) + (if (showTransfers) 1 else 0)
 
     LazyColumn(
         modifier = modifier
@@ -54,6 +58,12 @@ fun HomeSkeleton(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         userScrollEnabled = false
     ) {
+        item(key = "drive-overview") {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SkeletonBlock(brush, Modifier.fillMaxWidth(0.62f).height(32.dp))
+                SkeletonBlock(brush, Modifier.fillMaxWidth(0.38f).height(20.dp))
+            }
+        }
         if (showBackupCard) {
             item {
                 SkeletonBlock(
@@ -63,7 +73,31 @@ fun HomeSkeleton(
                 )
             }
         }
-        if (sections.showRecent) {
+        if (showPendingSync) {
+            item(key = "pending-sync") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.large)
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SkeletonBlock(brush, Modifier.size(24.dp), MaterialTheme.shapes.small)
+                    Spacer(Modifier.width(16.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        SkeletonBlock(brush, Modifier.fillMaxWidth(0.55f).height(14.dp))
+                        SkeletonBlock(brush, Modifier.fillMaxWidth(0.72f).height(12.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    SkeletonBlock(brush, Modifier.width(76.dp).height(36.dp), MaterialTheme.shapes.large)
+                }
+            }
+        }
+        if (showRecentSection) {
             item {
                 Column {
                     SectionHeaderSkeleton(brush)
@@ -78,16 +112,54 @@ fun HomeSkeleton(
             Column {
                 SectionHeaderSkeleton(brush)
                 Spacer(Modifier.height(8.dp))
-                SkeletonBlock(
-                    brush = brush,
-                    modifier = Modifier.fillMaxWidth().height(STORAGE_CARD_HEIGHT),
-                    shape = MaterialTheme.shapes.large
-                )
+                StorageCardSkeleton(brush)
             }
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 repeat(linkCount) { CollectionRowSkeleton(brush) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StorageCardSkeleton(brush: Brush) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.extraLarge)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(20.dp)
+    ) {
+        SkeletonBlock(brush, Modifier.width(128.dp).height(28.dp))
+        Spacer(Modifier.height(6.dp))
+        SkeletonBlock(brush, Modifier.width(92.dp).height(16.dp))
+        Spacer(Modifier.height(16.dp))
+        SkeletonBlock(brush, Modifier.fillMaxWidth().height(14.dp), MaterialTheme.shapes.extraLarge)
+        Spacer(Modifier.height(16.dp))
+        repeat(STORAGE_LEGEND_ROWS) { index ->
+            if (index > 0) {
+                Spacer(Modifier.height(5.dp))
+                SkeletonBlock(
+                    brush,
+                    Modifier.fillMaxWidth().height(1.dp),
+                    MaterialTheme.shapes.extraSmall
+                )
+                Spacer(Modifier.height(5.dp))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SkeletonBlock(brush, Modifier.size(12.dp), MaterialTheme.shapes.extraLarge)
+                Spacer(Modifier.width(8.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    SkeletonBlock(brush, Modifier.fillMaxWidth(0.56f).height(12.dp))
+                    SkeletonBlock(brush, Modifier.fillMaxWidth(0.38f).height(12.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                SkeletonBlock(brush, Modifier.width(32.dp).height(12.dp))
             }
         }
     }
@@ -135,7 +207,6 @@ private fun CollectionRowSkeleton(brush: Brush) {
     }
 }
 
-private const val EXTRA_LINKS = 2
 private const val RECENT_TILES = 4
 private val BACKUP_CARD_HEIGHT = 152.dp
-private val STORAGE_CARD_HEIGHT = 200.dp
+private const val STORAGE_LEGEND_ROWS = 3

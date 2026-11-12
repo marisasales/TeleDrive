@@ -80,6 +80,7 @@ fun AppNavHost(
                     onOpenFolder = { navController.navigateOnce(Route.Files(it)) },
                     onOpenChannels = { navController.navigateOnce(Route.Channels) },
                     onOpenCollection = { navController.navigateOnce(Route.Collection(it.name)) },
+                    onOpenTransfers = { navController.navigateOnce(Route.Transfers) },
                     onOpenFiles = { navController.navigateOnce(Route.Files()) },
                     onOpenTrash = { navController.navigateOnce(Route.Trash) },
                     onOpenBackupSettings = {

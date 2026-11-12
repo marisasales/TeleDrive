@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -172,6 +173,7 @@ import com.drdisagree.teledrive.resources.home_status_connecting
 import com.drdisagree.teledrive.resources.home_status_offline
 import com.drdisagree.teledrive.resources.home_status_syncing
 import com.drdisagree.teledrive.resources.home_status_rebuilding
+import com.drdisagree.teledrive.resources.home_active_transfers
 import com.drdisagree.teledrive.resources.home_storage_percent
 import com.drdisagree.teledrive.resources.home_storage_percent_min
 import com.drdisagree.teledrive.resources.home_sync_now
@@ -181,6 +183,7 @@ import com.drdisagree.teledrive.resources.home_waiting_count
 import com.drdisagree.teledrive.resources.home_trash_summary
 import com.drdisagree.teledrive.resources.nav_files
 import com.drdisagree.teledrive.resources.trash
+import com.drdisagree.teledrive.resources.transfers
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
@@ -195,6 +198,7 @@ fun HomeScreen(
     onOpenFolder: (String) -> Unit,
     onOpenChannels: () -> Unit,
     onOpenCollection: (CollectionType) -> Unit,
+    onOpenTransfers: () -> Unit,
     onOpenBackupSettings: () -> Unit,
     onOpenFiles: () -> Unit,
     onOpenTrash: () -> Unit,
@@ -329,7 +333,11 @@ fun HomeScreen(
         if (state.loading) {
             HomeSkeleton(
                 sections = sections,
+                showRecentSection = state.showRecentSection,
                 showBackupCard = capabilities.supportsAutoBackup,
+                showPendingSync = pendingSync.visible,
+                showTrash = !capabilities.isDesktop,
+                showTransfers = !capabilities.isDesktop,
                 contentPadding = padding.add(
                     horizontal = 16.dp,
                     top = 4.dp,
@@ -506,6 +514,9 @@ fun HomeScreen(
                         showHidden = state.showHiddenSection,
                         offlineBytes = state.offlineBytes,
                         onOpenCollection = onOpenCollection,
+                        showTransfers = !capabilities.isDesktop,
+                        activeTransferCount = state.activeTransferCount,
+                        onOpenTransfers = onOpenTransfers,
                         showTrash = !capabilities.isDesktop,
                         trashItemCount = trashSummary.itemCount,
                         trashTotalSizeBytes = trashSummary.totalSizeBytes,
@@ -545,6 +556,9 @@ private fun CollectionLinks(
     showHidden: Boolean,
     offlineBytes: Long,
     onOpenCollection: (CollectionType) -> Unit,
+    showTransfers: Boolean,
+    activeTransferCount: Int,
+    onOpenTransfers: () -> Unit,
     showTrash: Boolean,
     trashItemCount: Int,
     trashTotalSizeBytes: Long,
@@ -557,17 +571,25 @@ private fun CollectionLinks(
             else -> true
         }
     }
-    val itemCount = collections.size + if (showTrash) 1 else 0
+    val links = buildList {
+        collections.forEach { collection ->
+            add(HomeAccessLink.Collection(collection))
+            if (collection == CollectionType.AVAILABLE_OFFLINE && showTransfers) {
+                add(HomeAccessLink.Transfers)
+            }
+        }
+        if (showTrash) add(HomeAccessLink.Trash)
+    }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val columns = if (maxWidth >= 600.dp) 2 else 1
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            repeat((itemCount + columns - 1) / columns) { rowIndex ->
+            repeat((links.size + columns - 1) / columns) { rowIndex ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     repeat(columns) { columnIndex ->
                         val index = rowIndex * columns + columnIndex
-                        when {
-                            index < collections.size -> {
-                                val collection = collections[index]
+                        when (val link = links.getOrNull(index)) {
+                            is HomeAccessLink.Collection -> {
+                                val collection = link.type
                                 CollectionTile(
                                     modifier = Modifier.weight(1f),
                                     icon = collection.icon,
@@ -578,7 +600,18 @@ private fun CollectionLinks(
                                     onClick = { onOpenCollection(collection) }
                                 )
                             }
-                            showTrash && index == collections.size -> CollectionTile(
+                            HomeAccessLink.Transfers -> CollectionTile(
+                                modifier = Modifier.weight(1f),
+                                icon = Icons.Filled.SwapVert,
+                                title = stringResource(Res.string.transfers),
+                                subtitle = if (activeTransferCount > 0) {
+                                    stringResource(Res.string.home_active_transfers, activeTransferCount)
+                                } else {
+                                    stringResource(Res.string.home_transfer_history_subtitle)
+                                },
+                                onClick = onOpenTransfers
+                            )
+                            HomeAccessLink.Trash -> CollectionTile(
                                 modifier = Modifier.weight(1f),
                                 icon = Icons.Filled.Delete,
                                 title = stringResource(Res.string.trash),
@@ -589,13 +622,19 @@ private fun CollectionLinks(
                                 ),
                                 onClick = onOpenTrash
                             )
-                            else -> Spacer(Modifier.weight(1f))
+                            null -> Spacer(Modifier.weight(1f))
                         }
                     }
                 }
             }
         }
     }
+}
+
+private sealed interface HomeAccessLink {
+    data class Collection(val type: CollectionType) : HomeAccessLink
+    data object Transfers : HomeAccessLink
+    data object Trash : HomeAccessLink
 }
 
 @Composable
